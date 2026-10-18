@@ -1,8 +1,9 @@
 # Requisiti ortDirector
 
-Stato: **bozza**, da confermare. Le domande aperte sono in fondo.
+Stato: **concordati** il 2026-10-18.
 
 Vincoli fissi: iPhone prima (Android dopo), Expo + TypeScript, dati solo sul telefono (SQLite), nessun account e nessun server, interfaccia in italiano.
+L'app copre sia l'orto sia il giardino ornamentale, ed è pensata per una persona sola su un telefono.
 
 ## v1
 
@@ -39,10 +40,10 @@ Vincoli fissi: iPhone prima (Android dopo), Expo + TypeScript, dati solo sul tel
 - Meteo da internet (rompe l'offline; il pulsante "ha piovuto" copre il caso a costo zero).
 - Riconoscimento delle piante da foto, community, consigli generati.
 
-## Domande aperte
+## Decisioni
 
-1. Orto, giardino ornamentale o tutti e due?
-2. Lo usi da sola o in due sullo stesso orto?
-3. Irrigazione: basta "ha piovuto" + intervallo stagionale, o vuoi il meteo vero?
-4. Mappa: in v1 o dopo?
-5. Foto in v1 o dopo?
+1. **Orto e giardino ornamentale**, tutti e due: per questo servono annuali/perenni e ricorrenze stagionali.
+2. **Una persona sola**: niente sincronizzazione, che richiederebbe un server.
+3. **Irrigazione senza meteo**: pulsante "ha piovuto" e intervallo estate/resto dell'anno.
+4. **Mappa dopo la v1**: in v1 solo le zone, su cui la mappa verrà disegnata.
+5. **Foto in v1**: una per pianta.
