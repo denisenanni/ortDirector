@@ -16,7 +16,7 @@ React Native + Expo (SDK 58), TypeScript, dati solo sul telefono (SQLite), prome
 
 ## Provarla sull'iPhone
 
-Serve un computer (Mac, Windows o Linux) con Node 20+ e corepack attivo (`corepack enable`; da Node 25 prima `npm i -g corepack`) sulla stessa Wi-Fi dell’iPhone.
+Serve un computer (Mac, Windows o Linux) con **Node 24 LTS** (c’è `.nvmrc`; Expo 58 non supporta Node 25) e corepack attivo (`corepack enable`) sulla stessa Wi-Fi dell’iPhone.
 
 1. Installa **Expo Go** dall'App Store.
 2. Sul computer:
