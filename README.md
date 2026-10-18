@@ -16,28 +16,28 @@ React Native + Expo (SDK 58), TypeScript, dati solo sul telefono (SQLite), prome
 
 ## Provarla sull'iPhone
 
-Serve un computer (Mac, Windows o Linux) con Node 20+ sulla stessa Wi-Fi dell'iPhone.
+Serve un computer (Mac, Windows o Linux) con Node 20+ e Yarn 1 (`npm install -g yarn`) sulla stessa Wi-Fi dell’iPhone.
 
 1. Installa **Expo Go** dall'App Store.
 2. Sul computer:
    ```sh
    git clone https://github.com/denisenanni/ortDirector.git
    cd ortDirector
-   npm install
-   npx expo start
+   yarn install
+   yarn start
    ```
 3. Inquadra il QR code con la fotocamera dell'iPhone, si apre in Expo Go.
 
-Se il telefono non vede il computer (reti aziendali, VPN): `npx expo start --tunnel`.
+Se il telefono non vede il computer (reti aziendali, VPN): `yarn start --tunnel`.
 
 Expo Go deve supportare SDK 58. Se dice che la versione non è compatibile, aggiorna Expo Go.
 
 ## Sviluppo
 
 ```sh
-npm run typecheck   # tsc
-npm test            # test della logica di date e promemoria (node --test)
-npx expo start --web  # anteprima nel browser
+yarn typecheck         # tsc
+yarn test              # test della logica di date e promemoria (node --test)
+yarn web               # anteprima nel browser
 ```
 
 Struttura:
