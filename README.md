@@ -1,7 +1,7 @@
 # ortDirector
 
 App per gestire orto e giardino: cosa ha bisogno ogni pianta (sole, acqua) e cosa c'è da fare oggi.
-React Native + Expo (SDK 58), TypeScript, dati solo sul telefono (SQLite), promemoria con notifiche locali.
+React Native + Expo (SDK 57), TypeScript, dati solo sul telefono (SQLite), promemoria con notifiche locali.
 
 ## Cosa fa
 
@@ -16,7 +16,7 @@ React Native + Expo (SDK 58), TypeScript, dati solo sul telefono (SQLite), prome
 
 ## Provarla sull'iPhone
 
-Serve un computer (Mac, Windows o Linux) con **Node 24 LTS** (c’è `.nvmrc`; Expo 58 non supporta Node 25) e corepack attivo (`corepack enable`) sulla stessa Wi-Fi dell’iPhone.
+Serve un computer (Mac, Windows o Linux) con **Node 24 LTS** (c’è `.nvmrc`; Expo non supporta le versioni dispari di Node) e corepack attivo (`corepack enable`) sulla stessa Wi-Fi dell’iPhone.
 
 1. Installa **Expo Go** dall'App Store.
 2. Sul computer:
@@ -30,7 +30,7 @@ Serve un computer (Mac, Windows o Linux) con **Node 24 LTS** (c’è `.nvmrc`; E
 
 Se il telefono non vede il computer (reti aziendali, VPN): `yarn start --tunnel`.
 
-Expo Go deve supportare SDK 58. Se dice che la versione non è compatibile, aggiorna Expo Go.
+Il progetto resta su SDK 57 perché è l’ultima che Expo Go dell’App Store supporta. Quando Expo Go passa a 58 si può aggiornare con `yarn expo install expo@^58 --fix`.
 
 ## Sviluppo
 
