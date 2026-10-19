@@ -18,6 +18,7 @@ function task(over: Partial<TaskWithPlant>): TaskWithPlant {
     title: 'Task',
     dueOn: '2026-10-18',
     repeatDays: null,
+    endsOn: null,
     doneOn: null,
     notes: null,
     plantName: null,
@@ -55,6 +56,17 @@ test('completeTask rolls repeating tasks forward from the completion day', () =>
   assert.deepEqual(completeTask({ repeatDays: null }, '2026-10-20'), {
     dueOn: null,
     doneOn: '2026-10-20',
+  });
+});
+
+test('completeTask closes a repeating task past its end day', () => {
+  assert.deepEqual(completeTask({ repeatDays: 7, endsOn: '2026-10-30' }, '2026-10-20'), {
+    dueOn: '2026-10-27',
+    doneOn: null,
+  });
+  assert.deepEqual(completeTask({ repeatDays: 7, endsOn: '2026-10-30' }, '2026-10-27'), {
+    dueOn: null,
+    doneOn: '2026-10-27',
   });
 });
 

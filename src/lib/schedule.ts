@@ -46,13 +46,15 @@ export function relativeLabel(day: DayString, ref: DayString): string {
  * What happens to a task when it is marked done on `doneOn`.
  * Repeating tasks roll forward from the completion day (water every 3 days
  * means 3 days after you actually watered, not after the original due date).
+ * A repeating task with `endsOn` closes once its next date would fall after it.
  */
 export function completeTask(
-  task: Pick<Task, 'repeatDays'>,
+  task: Pick<Task, 'repeatDays'> & { endsOn?: DayString | null },
   doneOn: DayString,
 ): { dueOn: DayString; doneOn: DayString | null } | { dueOn: null; doneOn: DayString } {
   if (task.repeatDays && task.repeatDays > 0) {
-    return { dueOn: addDays(doneOn, task.repeatDays), doneOn: null };
+    const next = addDays(doneOn, task.repeatDays);
+    if (!task.endsOn || next <= task.endsOn) return { dueOn: next, doneOn: null };
   }
   return { dueOn: null, doneOn };
 }
