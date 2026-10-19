@@ -1,8 +1,9 @@
 # Requisiti ortDirector
 
-Stato: **bozza**, da confermare. Le domande aperte sono in fondo.
+Stato: **concordati** il 2026-10-18.
 
 Vincoli fissi: iPhone prima (Android dopo), Expo + TypeScript, dati solo sul telefono (SQLite), nessun account e nessun server, interfaccia in italiano.
+L'app copre sia l'orto sia il giardino ornamentale, ed è pensata per una persona sola su un telefono.
 
 ## v1
 
@@ -24,6 +25,11 @@ Vincoli fissi: iPhone prima (Android dopo), Expo + TypeScript, dati solo sul tel
 5. **Annuali e perenni.** Le annuali dell'orto finiscono a fine stagione: si archiviano (con il loro storico) invece di cancellarle.
 6. **Backup.** Dati solo sul telefono vuol dire che se lo perdi perdi tutto. Esporta e importa un file (JSON) da salvare su iCloud Drive o dove vuoi.
 7. **Foto**: una foto per pianta, salvata in locale.
+8. **Trapianto a terra.** È l'evento da cui partono quasi tutti i promemoria dell'orto.
+   - Una pianta è *in semenzaio/vaso* o *a terra*. Se nasce da seme si segna la data di semina, se è comprata già cresciuta si parte direttamente dal trapianto.
+   - In semenzaio: promemoria "pronta da trapiantare" dopo le settimane tipiche della pianta (es. pomodoro 6-8 dalla semina).
+   - Segnare il trapianto è un tocco solo (data di default oggi). Da quella data l'app crea le attività del piano della pianta, contate dal trapianto. Esempio pomodoro: irrigazione più fitta le prime 2 settimane, tutore a +7 giorni, prima concimazione a +15, sfemminellatura ogni settimana, raccolta prevista da +70.
+   - Il piano viene dal catalogo (le ~25 piante comuni), è modificabile per pianta, e le piante fuori catalogo non hanno piano automatico.
 
 ## Dopo la v1
 
@@ -39,10 +45,11 @@ Vincoli fissi: iPhone prima (Android dopo), Expo + TypeScript, dati solo sul tel
 - Meteo da internet (rompe l'offline; il pulsante "ha piovuto" copre il caso a costo zero).
 - Riconoscimento delle piante da foto, community, consigli generati.
 
-## Domande aperte
+## Decisioni
 
-1. Orto, giardino ornamentale o tutti e due?
-2. Lo usi da sola o in due sullo stesso orto?
-3. Irrigazione: basta "ha piovuto" + intervallo stagionale, o vuoi il meteo vero?
-4. Mappa: in v1 o dopo?
-5. Foto in v1 o dopo?
+1. **Orto e giardino ornamentale**, tutti e due: per questo servono annuali/perenni e ricorrenze stagionali.
+2. **Una persona sola**: niente sincronizzazione, che richiederebbe un server.
+3. **Irrigazione senza meteo**: pulsante "ha piovuto" e intervallo estate/resto dell'anno.
+4. **Mappa dopo la v1**: in v1 solo le zone, su cui la mappa verrà disegnata.
+5. **Foto in v1**: una per pianta.
+6. **Trapianto a terra in v1** (aggiunto il 2026-10-19): fa partire il piano di attività della pianta.
