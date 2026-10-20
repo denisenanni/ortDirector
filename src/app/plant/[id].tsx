@@ -1,7 +1,7 @@
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
-import { Image, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { Image, Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { Icon, SUN_SYMBOL, TASK_SYMBOL, type IconName } from '@/components/Icon';
 import { waterLabel } from '@/components/PlantAvatar';
 import { TASK_TONE, TaskRow } from '@/components/TaskRow';
@@ -20,9 +20,9 @@ import {
   type Tone,
 } from '@/components/ui';
 import { archivePlant, getPlant, getZone, listPlantLog, listPlantTasks, markDone, restorePlant, setPlantPhoto } from '@/lib/db';
-import { confirm } from '@/lib/dialogs';
+import { confirm, notify } from '@/lib/dialogs';
 import { syncReminders } from '@/lib/notifications';
-import { deletePhoto, photoUri, takePhoto } from '@/lib/photos';
+import { CameraPermissionError, deletePhoto, photoUri, takePhoto } from '@/lib/photos';
 import { planFor } from '@/lib/plans';
 import { SUN_LABEL, everyDays, presetFor } from '@/lib/presets';
 import { daysBetween, fromDay, pastLabel, sunMismatch, today as getToday } from '@/lib/schedule';
@@ -70,11 +70,27 @@ export default function PlantScreen() {
 
   const pickPhoto = async (source: 'camera' | 'library') => {
     if (!plant) return;
-    const photo = await takePhoto(plant.id, source);
-    if (!photo) return;
-    deletePhoto(plant.photo);
-    await setPlantPhoto(db, plant.id, photo);
-    await load();
+    try {
+      const photo = await takePhoto(plant.id, source);
+      if (!photo) return;
+      deletePhoto(plant.photo);
+      await setPlantPhoto(db, plant.id, photo);
+      await load();
+    } catch (e) {
+      if (e instanceof CameraPermissionError) {
+        const open = await confirm(
+          tr('Serve la fotocamera', 'Camera needed'),
+          tr(
+            'L’accesso alla fotocamera è negato. Puoi attivarlo nelle Impostazioni del telefono.',
+            'Camera access is turned off. You can turn it on in your phone’s Settings.',
+          ),
+          tr('Apri Impostazioni', 'Open Settings'),
+        );
+        if (open) Linking.openSettings();
+      } else {
+        notify(tr('Foto non salvata', 'Photo not saved'), e instanceof Error ? e.message : String(e));
+      }
+    }
   };
 
   const removePhoto = async () => {
