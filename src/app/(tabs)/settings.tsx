@@ -121,7 +121,7 @@ export default function SettingsScreen() {
         <SectionHeader>Backup</SectionHeader>
         <Body muted>
           I dati restano solo su questo telefono: se lo perdi, perdi tutto. Esporta un backup ogni tanto e salvalo su
-          iCloud Drive o dove vuoi.
+          iCloud Drive o dove vuoi. Le foto delle piante non sono nel backup.
         </Body>
         {lastBackup ? (
           <Body muted style={{ marginTop: 6 }}>

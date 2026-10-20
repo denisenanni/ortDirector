@@ -1,9 +1,10 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { Body, Button, Card, Empty, Screen, SectionHeader, useTheme } from '@/components/ui';
 import { listPlants, listZones } from '@/lib/db';
+import { photoUri } from '@/lib/photos';
 import { SUN_ICON, SUN_LABEL } from '@/lib/presets';
 import { sunMismatch } from '@/lib/schedule';
 import type { Plant, Zone } from '@/lib/types';
@@ -20,24 +21,30 @@ export default function PlantsScreen() {
   );
 
   if (!data) return <Screen>{null}</Screen>;
-  const { plants, zones } = data;
+  const { zones } = data;
+  const plants = data.plants.filter((p) => !p.archivedOn);
+  const archived = data.plants.filter((p) => p.archivedOn);
 
   const card = (p: Plant, zone?: Zone) => {
     const warn = zone && sunMismatch(p.sun, zone.sun);
+    const uri = photoUri(p.photo);
     return (
       <Pressable key={p.id} onPress={() => router.push(`/plant/${p.id}`)}>
-        <Card>
-          <Text style={{ fontSize: 17, fontWeight: '600', color: t.text }}>
-            {p.name}
-            {p.variety ? <Text style={{ color: t.muted, fontWeight: '400' }}> · {p.variety}</Text> : null}
-          </Text>
-          <Body muted>
-            {SUN_ICON[p.sun]} {SUN_LABEL[p.sun]}
-            {p.waterEveryDays ? `  💧 ogni ${p.waterEveryDays === 1 ? 'giorno' : `${p.waterEveryDays} gg`}` : ''}
-            {p.potted ? '  🪴 vaso' : ''}
-            {p.stage === 'seedbed' ? '  🌱 da trapiantare' : ''}
-          </Body>
-          {warn ? <Body style={{ color: t.warn }}>⚠️ {warn}</Body> : null}
+        <Card style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+          {uri ? <Image source={{ uri }} style={{ width: 56, height: 42, borderRadius: 8 }} /> : null}
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 17, fontWeight: '600', color: t.text }}>
+              {p.name}
+              {p.variety ? <Text style={{ color: t.muted, fontWeight: '400' }}> · {p.variety}</Text> : null}
+            </Text>
+            <Body muted>
+              {SUN_ICON[p.sun]} {SUN_LABEL[p.sun]}
+              {p.waterEveryDays ? `  💧 ogni ${p.waterEveryDays === 1 ? 'giorno' : `${p.waterEveryDays} gg`}` : ''}
+              {p.potted ? '  🪴 vaso' : ''}
+              {p.stage === 'seedbed' ? '  🌱 da trapiantare' : ''}
+            </Body>
+            {warn ? <Body style={{ color: t.warn }}>⚠️ {warn}</Body> : null}
+          </View>
         </Card>
       </Pressable>
     );
@@ -48,7 +55,7 @@ export default function PlantsScreen() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-        {plants.length === 0 && zones.length === 0 && (
+        {data.plants.length === 0 && zones.length === 0 && (
           <Empty title="Nessuna pianta" hint="Aggiungi la prima pianta del tuo orto o giardino." />
         )}
         {zones.map((z) => {
@@ -68,6 +75,8 @@ export default function PlantsScreen() {
         })}
         {noZone.length > 0 && zones.length > 0 && <SectionHeader>Senza zona</SectionHeader>}
         {noZone.map((p) => card(p))}
+        {archived.length > 0 && <SectionHeader>🗄️ Archivio</SectionHeader>}
+        {archived.map((p) => card(p))}
         <Button label="Aggiungi pianta" onPress={() => router.push('/plant/edit')} />
         <Button kind="secondary" label="Aggiungi zona" onPress={() => router.push('/zone/edit')} />
       </ScrollView>

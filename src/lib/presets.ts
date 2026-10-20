@@ -124,6 +124,15 @@ export function repeatLabel(t: {
   return season ? `${every}, ${season}` : every;
 }
 
+/** Catalog plants that live for years; every other catalog plant is an annual crop. */
+const PERENNIALS = new Set([
+  'Fragola', 'Menta', 'Rosmarino', 'Salvia', 'Lavanda', 'Timo', 'Ortensia', 'Rosa', 'Limone (vaso)',
+]);
+
+export function isAnnual(presetName: string | undefined): boolean {
+  return !!presetName && !PERENNIALS.has(presetName);
+}
+
 /** Types a user can pick by hand. Transplant tasks are created by the app. */
 export const TASK_TYPES = (Object.keys(TASK_LABEL) as TaskType[]).filter((t) => t !== 'transplant');
 

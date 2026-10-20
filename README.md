@@ -20,11 +20,16 @@ React Native + Expo (SDK 57), TypeScript, dati solo sul telefono (SQLite), prome
   e i passi estivi dei piani dell'orto (raccolta, concime) stanno nella loro stagione.
 - **Zone**: aiuole, vasi del balcone, serra… con il sole che prendono davvero e se sono al coperto. In Piante le piante sono raggruppate per zona,
   e se il sole della zona non va bene per la pianta (pomodoro in ombra, ortensia in pieno sole) compare un avviso.
+  Una zona si può eliminare solo quando è vuota.
 - **Pioggia e stagioni**: il pulsante "Ha piovuto" in Oggi conta come annaffiate tutte le piante tranne quelle nelle zone al coperto.
   Ogni pianta ha un intervallo di irrigazione da maggio a settembre e uno per il resto dell'anno.
 - **Backup**: in Impostazioni "Esporta backup" crea un file JSON con tutti i dati da salvare su iCloud Drive o dove vuoi;
-  "Importa backup" lo rimette al posto dei dati attuali, dopo una conferma.
-- **Oggi**: cosa scade oggi o è in ritardo, i prossimi 7 giorni, e più avanti. Tocca il cerchio per segnare fatto.
+  "Importa backup" lo rimette al posto dei dati attuali, dopo una conferma. Le foto non sono nel backup.
+- **Foto**: una per pianta, scattata o scelta dalla libreria, nella sua scheda.
+- **Annuali e perenni**: a fine stagione un'annuale si archivia; le sue attività spariscono, scheda e storico restano in Archivio
+  (in fondo a Piante) e si può ripristinare.
+- **Oggi**: cosa scade oggi o è in ritardo, i prossimi 7 giorni, e più avanti, con la zona a sinistra. Tocca il cerchio per segnare fatto:
+  quello che hai fatto oggi resta spuntato fino a domani, e toccandolo di nuovo lo annulli.
 - **Promemoria**: una sola notifica al giorno (ora configurabile, default 8:00) con l'elenco delle attività.
 - **Storico** per pianta.
 
@@ -66,5 +71,4 @@ Struttura:
 ## Prossimi passi possibili
 
 - Mappa schematica del giardino (aiuole, posizione delle piante).
-- Foto delle piante.
 - Build vera per iPhone (EAS) invece di Expo Go, e Android.

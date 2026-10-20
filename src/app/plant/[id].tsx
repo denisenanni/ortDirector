@@ -1,11 +1,13 @@
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
-import { ScrollView } from 'react-native';
+import { Image, Platform, ScrollView, View } from 'react-native';
 import { TaskRow } from '@/components/TaskRow';
 import { Body, Button, Card, Screen, SectionHeader, Title, useTheme } from '@/components/ui';
-import { getPlant, getZone, listPlantLog, listPlantTasks, markDone } from '@/lib/db';
+import { archivePlant, getPlant, getZone, listPlantLog, listPlantTasks, markDone, restorePlant, setPlantPhoto } from '@/lib/db';
+import { confirm } from '@/lib/dialogs';
 import { syncReminders } from '@/lib/notifications';
+import { deletePhoto, photoUri, takePhoto } from '@/lib/photos';
 import { planFor } from '@/lib/plans';
 import { SUN_ICON, SUN_LABEL, TASK_ICON, presetFor } from '@/lib/presets';
 import { daysBetween, fromDay, pastLabel, sunMismatch, today as getToday } from '@/lib/schedule';
@@ -50,7 +52,45 @@ export default function PlantScreen() {
     syncReminders(db);
   };
 
+  const pickPhoto = async (source: 'camera' | 'library') => {
+    if (!plant) return;
+    const photo = await takePhoto(plant.id, source);
+    if (!photo) return;
+    deletePhoto(plant.photo);
+    await setPlantPhoto(db, plant.id, photo);
+    await load();
+  };
+
+  const removePhoto = async () => {
+    if (!plant || !(await confirm('Togliere la foto?', '', 'Togli', true))) return;
+    deletePhoto(plant.photo);
+    await setPlantPhoto(db, plant.id, null);
+    await load();
+  };
+
+  const archive = async () => {
+    if (!plant) return;
+    const ok = await confirm(
+      'Archiviare la pianta?',
+      'Le sue attività aperte vengono tolte. La scheda e lo storico restano in Archivio, da dove puoi ripristinarla.',
+      'Archivia',
+    );
+    if (!ok) return;
+    await archivePlant(db, plant.id);
+    await load();
+    syncReminders(db);
+  };
+
+  const restore = async () => {
+    if (!plant) return;
+    await restorePlant(db, plant.id);
+    await load();
+    syncReminders(db);
+  };
+
   if (!plant) return <Screen>{null}</Screen>;
+
+  const uri = photoUri(plant.photo);
 
   const preset = presetFor(plant);
   const tip = preset?.tip;
@@ -63,6 +103,36 @@ export default function PlantScreen() {
     <Screen>
       <Stack.Screen options={{ title: plant.name }} />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+        {uri ? (
+          <Image
+            source={{ uri }}
+            accessibilityLabel={`Foto di ${plant.name}`}
+            style={{ width: '100%', aspectRatio: 4 / 3, borderRadius: 14, marginBottom: 8 }}
+          />
+        ) : null}
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {Platform.OS !== 'web' && (
+            <View style={{ flex: 1 }}>
+              <Button kind="secondary" label="📷 Scatta" onPress={() => pickPhoto('camera')} />
+            </View>
+          )}
+          <View style={{ flex: 1 }}>
+            <Button kind="secondary" label={uri ? '🖼️ Cambia' : '🖼️ Scegli foto'} onPress={() => pickPhoto('library')} />
+          </View>
+          {uri ? (
+            <View style={{ flex: 1 }}>
+              <Button kind="secondary" label="Togli" onPress={removePhoto} />
+            </View>
+          ) : null}
+        </View>
+
+        {plant.archivedOn ? (
+          <Card>
+            <Body>🗄️ In archivio dal {longDate(plant.archivedOn)}. Non ha attività e non compare in Oggi.</Body>
+            <Button label="↩️ Ripristina" onPress={restore} />
+          </Card>
+        ) : null}
+
         <Card>
           {plant.variety ? <Title>{plant.variety}</Title> : null}
           <Body>
@@ -101,23 +171,27 @@ export default function PlantScreen() {
           {tip ? <Body muted style={{ marginTop: 8 }}>💡 {tip}</Body> : null}
         </Card>
 
-        {plant.stage === 'seedbed' && (
+        {plant.stage === 'seedbed' && !plant.archivedOn && (
           <Button
             label="🌱 Segna il trapianto"
             onPress={() => router.push({ pathname: '/plant/transplant', params: { id: String(plant.id) } })}
           />
         )}
 
-        <SectionHeader>Attività</SectionHeader>
-        {tasks.length === 0 && <Body muted>Nessuna attività aperta.</Body>}
-        {tasks.map((t) => (
-          <TaskRow key={t.id} task={t} today={today} onDone={onDone} showPlant={false} />
-        ))}
-        <Button
-          kind="secondary"
-          label="Aggiungi attività"
-          onPress={() => router.push({ pathname: '/task/edit', params: { plantId: String(plant.id) } })}
-        />
+        {!plant.archivedOn && (
+          <>
+            <SectionHeader>Attività</SectionHeader>
+            {tasks.length === 0 && <Body muted>Nessuna attività aperta.</Body>}
+            {tasks.map((t) => (
+              <TaskRow key={t.id} task={t} today={today} onDone={onDone} showPlant={false} />
+            ))}
+            <Button
+              kind="secondary"
+              label="Aggiungi attività"
+              onPress={() => router.push({ pathname: '/task/edit', params: { plantId: String(plant.id) } })}
+            />
+          </>
+        )}
 
         {log.length > 0 && <SectionHeader>Storico</SectionHeader>}
         {log.map((e) => (
@@ -131,6 +205,13 @@ export default function PlantScreen() {
           label="Modifica pianta"
           onPress={() => router.push({ pathname: '/plant/edit', params: { id: String(plant.id) } })}
         />
+        {!plant.archivedOn && (
+          <Button
+            kind="secondary"
+            label={plant.annual ? '🗄️ Fine stagione: archivia' : '🗄️ Archivia'}
+            onPress={archive}
+          />
+        )}
       </ScrollView>
     </Screen>
   );
