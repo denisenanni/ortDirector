@@ -25,6 +25,17 @@ export interface SeasonalStep {
   months: number[];
   /** Every N days within the months; without it, once a year. */
   every?: number;
+  /** Only for plants that match: `{ potted: true }` is for pots only, `{ tender: true }` for plants that fear frost. */
+  only?: Partial<CareContext>;
+}
+
+/** What the user told about the plant when adding it, beyond the catalog. */
+export interface CareContext {
+  potted: boolean;
+  /** Can't stand frost. */
+  tender: boolean;
+  /** Young or small: pruned to shape it, not to keep it. */
+  young: boolean;
 }
 
 export interface CropPlan {
@@ -50,6 +61,16 @@ const cavolaia = (until: number): PlanStep => ({
   until,
   months: range(6, 10),
 });
+
+/** Winter protection for plants that fear frost: pots go under cover, plants in the ground get covered. */
+const frost = (only: Partial<CareContext> = {}): SeasonalStep[] => [
+  { type: 'other', title: 'Mettere al riparo dal gelo', months: [11], only: { ...only, potted: true } },
+  { type: 'other', title: 'Riportare fuori', months: [4], only: { ...only, potted: true } },
+  { type: 'other', title: 'Pacciamare e coprire con tessuto non tessuto', months: [11], only: { ...only, potted: false } },
+  { type: 'other', title: 'Togliere la protezione invernale', months: [3], only: { ...only, potted: false } },
+];
+
+const repot: SeasonalStep = { type: 'other', title: 'Controllare se serve un vaso più grande', months: [3], only: { potted: true } };
 
 const establish = (every: number, until: number): PlanStep => ({
   type: 'water',
@@ -337,6 +358,139 @@ export const PLANS: Record<string, CropPlan> = {
       { type: 'other', title: 'Riportare fuori', months: [4] },
     ],
   },
+  // Fruits on the tips of the new shoots: prune lightly, right after picking.
+  Litchi: {
+    steps: [establish(2, 60)],
+    seasonal: [
+      { type: 'fertilize', title: 'Concimazione leggera (acidofile)', months: range(3, 8), every: 30 },
+      { type: 'harvest', title: 'Raccolta', months: [7] },
+      { type: 'prune', title: 'Potatura leggera dopo la raccolta', months: [8] },
+      { type: 'check', title: 'Controllo cocciniglie e acari', months: range(5, 9), every: 30 },
+      repot,
+      ...frost(),
+    ],
+  },
+  Avocado: {
+    steps: [establish(3, 60)],
+    seasonal: [
+      { type: 'fertilize', title: 'Concimazione', months: range(3, 8), every: 45 },
+      { type: 'other', title: 'Rinnovare la pacciamatura', months: [4] },
+      { type: 'prune', title: 'Potatura leggera', months: [4] },
+      repot,
+      ...frost(),
+    ],
+  },
+  // Half hardy: in the ground it can die back to the roots and regrow.
+  'Leonotis (klip dagga)': {
+    steps: [establish(3, 30)],
+    seasonal: [
+      { type: 'prune', title: 'Potatura drastica (a 30 cm da terra)', months: [3] },
+      { type: 'fertilize', title: 'Concimazione', months: range(4, 6), every: 30 },
+      { type: 'prune', title: 'Togliere i fiori secchi', months: range(9, 11), every: 21 },
+      repot,
+      { type: 'other', title: 'Mettere al riparo dal gelo', months: [11], only: { potted: true } },
+      { type: 'other', title: 'Riportare fuori', months: [4], only: { potted: true } },
+      { type: 'other', title: 'Pacciamare la base contro il gelo', months: [11], only: { potted: false } },
+    ],
+  },
+
+  // Kinds, for plants outside the catalog (kinds.ts). Frost protection only
+  // when the user says the plant fears frost.
+  'Albero da frutto': {
+    steps: [establish(3, 60)],
+    seasonal: [
+      { type: 'prune', title: 'Potatura di formazione', months: [2], only: { young: true } },
+      { type: 'prune', title: 'Potatura invernale', months: [2], only: { young: false } },
+      { type: 'treat', title: 'Trattamento invernale (rame)', months: [2] },
+      { type: 'fertilize', title: 'Concimazione', months: [3] },
+      { type: 'check', title: 'Controllo afidi e malattie', months: range(4, 7), every: 21 },
+      repot,
+      ...frost({ tender: true }),
+    ],
+  },
+  'Albero da frutto tropicale': {
+    steps: [establish(2, 60)],
+    seasonal: [
+      { type: 'fertilize', title: 'Concimazione', months: range(3, 9), every: 30 },
+      { type: 'prune', title: 'Potatura di formazione', months: [4], only: { young: true } },
+      { type: 'prune', title: 'Potatura leggera', months: [4], only: { young: false } },
+      { type: 'check', title: 'Controllo cocciniglie e acari', months: range(5, 9), every: 30 },
+      repot,
+      ...frost({ tender: true }),
+    ],
+  },
+  Agrume: {
+    steps: [establish(2, 45)],
+    seasonal: [
+      { type: 'fertilize', title: 'Concimazione (agrumi)', months: range(3, 9), every: 30 },
+      { type: 'prune', title: 'Potatura leggera', months: [3] },
+      { type: 'check', title: 'Controllo cocciniglie e acari', months: range(5, 9), every: 30 },
+      repot,
+      ...frost({ tender: true }),
+    ],
+  },
+  'Albero ornamentale': {
+    steps: [establish(3, 90)],
+    seasonal: [
+      { type: 'prune', title: 'Potatura di formazione', months: [2], only: { young: true } },
+      { type: 'prune', title: 'Togliere rami secchi e incrociati', months: [2], only: { young: false } },
+      repot,
+      ...frost({ tender: true }),
+    ],
+  },
+  Arbusto: {
+    steps: [establish(2, 45)],
+    seasonal: [
+      { type: 'prune', title: 'Potatura', months: [3] },
+      { type: 'fertilize', title: 'Concimazione', months: [3] },
+      repot,
+      ...frost({ tender: true }),
+    ],
+  },
+  Siepe: {
+    steps: [establish(2, 60)],
+    seasonal: [
+      { type: 'prune', title: 'Tosatura', months: [6] },
+      { type: 'prune', title: 'Tosatura', months: [9] },
+      { type: 'fertilize', title: 'Concimazione', months: [3] },
+      ...frost({ tender: true }),
+    ],
+  },
+  Rampicante: {
+    steps: [establish(2, 45)],
+    seasonal: [
+      { type: 'prune', title: 'Potatura', months: [2] },
+      { type: 'other', title: 'Legare i tralci nuovi', months: range(4, 8), every: 30 },
+      { type: 'fertilize', title: 'Concimazione', months: range(3, 6), every: 30 },
+      repot,
+      ...frost({ tender: true }),
+    ],
+  },
+  'Perenne da fiore': {
+    steps: [establish(1, 21)],
+    seasonal: [
+      { type: 'prune', title: 'Tagliare gli steli secchi', months: [2] },
+      { type: 'fertilize', title: 'Concimazione', months: range(3, 6), every: 30 },
+      { type: 'prune', title: 'Togliere i fiori secchi', months: range(5, 9), every: 14 },
+      repot,
+      ...frost({ tender: true }),
+    ],
+  },
+  'Annuale da fiore': {
+    steps: [establish(1, 14)],
+    seasonal: [
+      { type: 'prune', title: 'Togliere i fiori secchi', months: range(5, 9), every: 7 },
+      { type: 'fertilize', title: 'Concimazione (piante fiorite)', months: range(5, 9), every: 14 },
+    ],
+  },
+  'Succulenta o cactus': {
+    steps: [],
+    seasonal: [
+      { type: 'fertilize', title: 'Concimazione (piante grasse)', months: range(4, 9), every: 30 },
+      { ...repot, months: [4] },
+      ...frost({ tender: true }),
+    ],
+  },
 };
 
 export function planFor(presetName: string | undefined): CropPlan | undefined {
@@ -379,9 +533,18 @@ export function expandPlan(steps: PlanStep[], transplantedOn: DayString, today: 
   return out;
 }
 
+/** Whether a seasonal step applies to the plant; what the user didn't say counts as no. */
+function applies(s: SeasonalStep, care: Partial<CareContext>): boolean {
+  return Object.entries(s.only ?? {}).every(([k, v]) => (care[k as keyof CareContext] ?? false) === v);
+}
+
 /** The calendar care of a plant added on `today`: each step at its next season. */
-export function seasonalTasks(plan: CropPlan | undefined, today: DayString): PlannedTask[] {
-  return (plan?.seasonal ?? []).map((s) => ({
+export function seasonalTasks(
+  plan: CropPlan | undefined,
+  today: DayString,
+  care: Partial<CareContext> = {},
+): PlannedTask[] {
+  return (plan?.seasonal ?? []).filter((s) => applies(s, care)).map((s) => ({
     type: s.type,
     title: cat(s.title),
     dueOn: nextInSeason(today, s.months),

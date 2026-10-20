@@ -1,5 +1,6 @@
 import { cat, days, language, tr } from './i18n.ts';
 import { CATALOG_EN } from './catalog-en.ts';
+import { PLANT_KINDS } from './kinds.ts';
 import type { Sun, TaskType } from './types';
 
 export interface PlantPreset {
@@ -52,6 +53,9 @@ export const PLANT_PRESETS: PlantPreset[] = [
   { name: 'Ortensia', sun: 'shade', waterEveryDays: 2, tip: 'Molta acqua, possibilmente piovana. Teme il sole pomeridiano.' },
   { name: 'Rosa', sun: 'full', waterEveryDays: 3, tip: 'Pota a fine inverno. Controlla afidi e oidio.' },
   { name: 'Limone (vaso)', sun: 'full', waterEveryDays: 3, tip: 'Lascia asciugare i primi cm di terra tra un’irrigazione e l’altra.' },
+  { name: 'Litchi', sun: 'full', waterEveryDays: 3, tip: 'Subtropicale: sotto i -2 °C soffre, da giovane già a 0 °C. Terreno sempre umido ma drenato, acqua poco calcarea e concime leggero: le radici patiscono il sale.' },
+  { name: 'Avocado', sun: 'full', waterEveryDays: 5, tip: 'Teme i ristagni più della siccità: annaffia a fondo e lascia asciugare i primi cm. Pacciama, le radici sono superficiali. Sotto i -2 °C va protetto.' },
+  { name: 'Leonotis (klip dagga)', sun: 'full', waterEveryDays: 7, tip: 'Resiste alla siccità e fiorisce da fine estate all’autunno. Sotto i -5 °C la parte aerea secca ma ricaccia dalla base: pacciama le radici d’inverno.' },
 ];
 
 // Getters, so the labels follow the language chosen at start-up.
@@ -145,9 +149,12 @@ export function everyDays(n: number): string {
 /** Catalog plants that live for years; every other catalog plant is an annual crop. */
 const PERENNIALS = new Set([
   'Fragola', 'Menta', 'Rosmarino', 'Salvia', 'Lavanda', 'Timo', 'Ortensia', 'Rosa', 'Limone (vaso)',
+  'Litchi', 'Avocado', 'Leonotis (klip dagga)',
 ]);
 
 export function isAnnual(presetName: string | undefined): boolean {
+  const kind = PLANT_KINDS.find((k) => k.name === presetName);
+  if (kind) return !!kind.annual;
   return !!presetName && !PERENNIALS.has(presetName);
 }
 
@@ -172,8 +179,13 @@ const GROUPS: { words: string[]; plants: string[] }[] = [
     words: ['aromatiche', 'aromatica', 'erbe', 'odori', 'herbs', 'herb'],
     plants: ['Basilico', 'Prezzemolo', 'Rosmarino', 'Salvia', 'Timo', 'Menta', 'Lavanda'],
   },
-  { words: ['fiori', 'fiore', 'flowers', 'flower', 'ornamentali'], plants: ['Ortensia', 'Rosa', 'Lavanda'] },
-  { words: ['frutta', 'frutto', 'fruit', 'agrumi', 'citrus'], plants: ['Fragola', 'Limone (vaso)'] },
+  { words: ['fiori', 'fiore', 'flowers', 'flower', 'ornamentali'], plants: ['Ortensia', 'Rosa', 'Lavanda', 'Leonotis (klip dagga)'] },
+  { words: ['frutta', 'frutto', 'fruit', 'alberi', 'albero', 'tree'], plants: ['Fragola', 'Limone (vaso)', 'Litchi', 'Avocado'] },
+  { words: ['agrumi', 'citrus'], plants: ['Limone (vaso)'] },
+  { words: ['tropicali', 'tropicale', 'subtropicale', 'esotiche', 'esotico', 'tropical', 'exotic'], plants: ['Litchi', 'Avocado'] },
+  // Other spellings of the same plant.
+  { words: ['lichi', 'lici', 'lychee', 'litchi'], plants: ['Litchi'] },
+  { words: ['coda di leone', 'lion’s tail', 'lions tail', 'wild dagga', 'dagga'], plants: ['Leonotis (klip dagga)'] },
 ];
 
 const normalize = (s: string) =>
@@ -198,8 +210,13 @@ export function searchPresets(query: string): PlantPreset[] {
   return [...byName, ...PLANT_PRESETS.filter((p) => fromGroups.has(p.name) && !byName.includes(p))];
 }
 
-/** The catalog entry for a plant: the one it was created from, else a name match. */
+/**
+ * The catalog entry for a plant: the one it was created from, else a name
+ * match. A plant outside the catalog created from a kind ("Albero da frutto")
+ * gets the kind.
+ */
 export function presetFor(plant: { preset: string | null; name: string }): PlantPreset | undefined {
   const key = (plant.preset ?? plant.name).toLowerCase();
-  return PLANT_PRESETS.find((p) => p.name.toLowerCase() === key || cat(p.name).toLowerCase() === key);
+  const match = (p: PlantPreset) => p.name.toLowerCase() === key || cat(p.name).toLowerCase() === key;
+  return PLANT_PRESETS.find(match) ?? (plant.preset ? PLANT_KINDS.find(match) : undefined);
 }
