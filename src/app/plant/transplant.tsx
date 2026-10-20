@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
 import { ScrollView } from 'react-native';
-import { Body, Button, Field, PastDayPicker, Screen, ToggleRow } from '@/components/ui';
+import { Body, Button, Chip, ChipRow, Field, PastDayPicker, Screen, ToggleRow } from '@/components/ui';
 import { getPlant, transplant } from '@/lib/db';
 import { syncReminders } from '@/lib/notifications';
 import { expandPlan, planFor } from '@/lib/plans';
@@ -17,11 +17,15 @@ export default function TransplantScreen() {
   const today = getToday();
   const [plant, setPlant] = useState<Plant | null>(null);
   const [day, setDay] = useState(today);
+  const [potted, setPotted] = useState(false);
   // Plan steps (by index) the user switched off for this plant.
   const [skipped, setSkipped] = useState<Set<number>>(new Set());
 
   useEffect(() => {
-    getPlant(db, plantId).then(setPlant);
+    getPlant(db, plantId).then((p) => {
+      setPlant(p);
+      if (p) setPotted(p.potted);
+    });
   }, [db, plantId]);
 
   if (!plant) return <Screen>{null}</Screen>;
@@ -40,7 +44,7 @@ export default function TransplantScreen() {
 
   const save = async () => {
     const tasks = planned.filter((t, i) => t && !skipped.has(i));
-    await transplant(db, plant.id, day, tasks);
+    await transplant(db, plant.id, day, tasks, potted);
     syncReminders(db);
     router.back();
   };
@@ -55,6 +59,13 @@ export default function TransplantScreen() {
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
         <Field label={`Quando hai messo a dimora ${plant.name.toLowerCase()}?`}>
           <PastDayPicker value={day} onChange={setDay} today={today} />
+        </Field>
+
+        <Field label="Dove">
+          <ChipRow>
+            <Chip label="🌳 In terra" selected={!potted} onPress={() => setPotted(false)} />
+            <Chip label="🪴 In vaso" selected={potted} onPress={() => setPotted(true)} />
+          </ChipRow>
         </Field>
 
         {plan ? (

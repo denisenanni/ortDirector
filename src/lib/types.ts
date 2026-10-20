@@ -16,13 +16,31 @@ export type Stage = 'seedbed' | 'ground';
 /** Calendar day in local time, formatted YYYY-MM-DD. */
 export type DayString = string;
 
+/** A bed, a group of pots, the greenhouse: where plants live. */
+export interface Zone {
+  id: number;
+  name: string;
+  /** The sun the spot actually gets. */
+  sun: Sun;
+  /** Greenhouse, under a roof, indoors: rain doesn't reach it. */
+  covered: boolean;
+}
+
 export interface Plant {
   id: number;
   name: string;
   variety: string | null;
+  /** Free-text position from before zones; shown only when there's no zone. */
   location: string | null;
+  zoneId: number | null;
+  /** Lives in a pot for good. */
+  potted: boolean;
+  /** The sun the plant needs. */
   sun: Sun;
+  /** Watering interval in the warm months (May to September). */
   waterEveryDays: number | null;
+  /** Watering interval the rest of the year; null means the same. */
+  waterColdDays: number | null;
   stage: Stage;
   /** Sowing day, for plants grown from seed. */
   sownOn: DayString | null;
@@ -46,6 +64,8 @@ export interface Task {
   yearly: boolean;
   /** Months (1-12) the task may fall in; null means all year. */
   months: number[] | null;
+  /** Interval outside the warm months; null means `repeatDays` all year. */
+  coldRepeatDays: number | null;
   doneOn: DayString | null;
   notes: string | null;
 }

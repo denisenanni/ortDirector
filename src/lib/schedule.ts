@@ -1,6 +1,6 @@
 // Pure date and scheduling logic. No React Native imports here, so it runs
 // under `node --test` (see schedule.test.ts).
-import type { DayString, Task, TaskWithPlant } from './types';
+import type { DayString, Sun, Task, TaskWithPlant } from './types';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -71,6 +71,38 @@ export function nextInSeason(day: DayString, months: number[] | null | undefined
   return day;
 }
 
+/** May to September: when watering follows the summer interval. */
+export const WARM_MONTHS = [5, 6, 7, 8, 9];
+
+/** The repeat interval in force on `day`: the cold one outside the warm months, if set. */
+export function intervalOn(
+  task: { repeatDays: number | null; coldRepeatDays?: number | null },
+  day: DayString,
+): number | null {
+  return task.coldRepeatDays && !inSeason(day, WARM_MONTHS) ? task.coldRepeatDays : task.repeatDays;
+}
+
+/**
+ * Watering after rain: counts as watered on `day`, so the task moves to one
+ * interval later. Never moves a task earlier.
+ */
+export function afterRain(
+  task: { dueOn: DayString; repeatDays: number | null; coldRepeatDays?: number | null },
+  day: DayString,
+): DayString {
+  const every = intervalOn(task, day);
+  if (!every) return task.dueOn;
+  const next = addDays(day, every);
+  return next > task.dueOn ? next : task.dueOn;
+}
+
+/** Why a spot doesn't suit a plant's sun needs, or null when it does. */
+export function sunMismatch(need: Sun, spot: Sun): string | null {
+  if (need === 'full' && spot !== 'full') return 'Qui prende meno sole di quanto le serve.';
+  if (need === 'shade' && spot === 'full') return 'Qui prende troppo sole: rischia di bruciarsi.';
+  return null;
+}
+
 /**
  * What happens to a task when it is marked done on `doneOn`.
  * Repeating tasks roll forward from the completion day (water every 3 days
@@ -83,6 +115,7 @@ export function nextInSeason(day: DayString, months: number[] | null | undefined
  */
 export function completeTask(
   task: Pick<Task, 'repeatDays'> & {
+    coldRepeatDays?: number | null;
     endsOn?: DayString | null;
     yearly?: boolean;
     months?: number[] | null;
@@ -96,8 +129,9 @@ export function completeTask(
         // window for any window shorter than ten months.
         nextInSeason(firstOfMonth(doneOn, 10), task.months)
       : addMonths(doneOn, 12);
-  } else if (task.repeatDays && task.repeatDays > 0) {
-    next = nextInSeason(addDays(doneOn, task.repeatDays), task.months);
+  } else {
+    const every = intervalOn(task, doneOn);
+    if (every && every > 0) next = nextInSeason(addDays(doneOn, every), task.months);
   }
   if (next && (!task.endsOn || next <= task.endsOn)) return { dueOn: next, doneOn: null };
   return { dueOn: null, doneOn };

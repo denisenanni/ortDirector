@@ -18,6 +18,10 @@ React Native + Expo (SDK 57), TypeScript, dati solo sul telefono (SQLite), prome
 - **Ricorrenze stagionali**: un'attività può ripetersi ogni N giorni solo in certi mesi (concime ogni 3 settimane, apr–set) o una volta l'anno (potatura a febbraio).
   Fuori stagione salta al primo giorno del mese utile. Le perenni del catalogo (rosa, lavanda, ortensia, limone…) ricevono da sole le loro cure annuali,
   e i passi estivi dei piani dell'orto (raccolta, concime) stanno nella loro stagione.
+- **Zone**: aiuole, vasi del balcone, serra… con il sole che prendono davvero e se sono al coperto. In Piante le piante sono raggruppate per zona,
+  e se il sole della zona non va bene per la pianta (pomodoro in ombra, ortensia in pieno sole) compare un avviso.
+- **Pioggia e stagioni**: il pulsante "Ha piovuto" in Oggi conta come annaffiate tutte le piante tranne quelle nelle zone al coperto.
+  Ogni pianta ha un intervallo di irrigazione da maggio a settembre e uno per il resto dell'anno.
 - **Oggi**: cosa scade oggi o è in ritardo, i prossimi 7 giorni, e più avanti. Tocca il cerchio per segnare fatto.
 - **Promemoria**: una sola notifica al giorno (ora configurabile, default 8:00) con l'elenco delle attività.
 - **Storico** per pianta.

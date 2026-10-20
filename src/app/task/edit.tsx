@@ -36,6 +36,7 @@ export default function EditTaskScreen() {
     endsOn: null,
     yearly: false,
     months: null,
+    coldRepeatDays: null,
     notes: null,
   });
   // Track whether the user typed a custom title, so switching type doesn't clobber it.
@@ -47,7 +48,7 @@ export default function EditTaskScreen() {
       getTask(db, editingId).then((t) => {
         if (!t) return;
         setExisting(t);
-        setForm({ plantId: t.plantId, type: t.type, title: t.title, dueOn: t.dueOn, repeatDays: t.repeatDays, endsOn: t.endsOn, yearly: t.yearly, months: t.months, notes: t.notes });
+        setForm({ plantId: t.plantId, type: t.type, title: t.title, dueOn: t.dueOn, repeatDays: t.repeatDays, endsOn: t.endsOn, yearly: t.yearly, months: t.months, coldRepeatDays: t.coldRepeatDays, notes: t.notes });
         setCustomTitle(t.title !== TASK_LABEL[t.type]);
       });
     }

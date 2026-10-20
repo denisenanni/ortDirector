@@ -1,32 +1,36 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { Body, Button, Chip, ChipRow, Field, Input, PastDayPicker, Screen, Stepper } from '@/components/ui';
-import { createPlant, deletePlant, getPlant, updatePlant, type PlantInput } from '@/lib/db';
+import { Body, Button, Chip, ChipRow, Field, Input, PastDayPicker, Screen, Stepper, useTheme } from '@/components/ui';
+import { coldWateringDefault, createPlant, deletePlant, getPlant, listZones, updatePlant, type PlantInput } from '@/lib/db';
 import { syncReminders } from '@/lib/notifications';
 import { planFor } from '@/lib/plans';
 import { PLANT_PRESETS, SUN_ICON, SUN_LABEL, presetFor } from '@/lib/presets';
-import { today as getToday } from '@/lib/schedule';
-import type { Sun } from '@/lib/types';
+import { sunMismatch, today as getToday } from '@/lib/schedule';
+import type { Sun, Zone } from '@/lib/types';
 
 const SUNS: Sun[] = ['full', 'partial', 'shade'];
 
 /** How a new plant starts out. */
-type Start = 'sown' | 'seedling' | 'ground';
+type Start = 'sown' | 'seedling' | 'ground' | 'potted';
 
 const START_LABEL: Record<Start, string> = {
   sown: '🌰 Seminata',
-  seedling: '🪴 Piantina da trapiantare',
-  ground: '🌳 Già a dimora',
+  seedling: '🌱 Piantina da trapiantare',
+  ground: '🌳 A dimora in terra',
+  potted: '🪴 In vaso',
 };
 
 const EMPTY: PlantInput = {
   name: '',
   variety: null,
   location: null,
+  zoneId: null,
+  potted: false,
   sun: 'full',
   waterEveryDays: 3,
+  waterColdDays: 9,
   stage: 'ground',
   sownOn: null,
   plantedOn: null,
@@ -41,7 +45,16 @@ export default function EditPlantScreen() {
   const [form, setForm] = useState<PlantInput>(EMPTY);
   const [tip, setTip] = useState<string | null>(null);
   const [start, setStart] = useState<Start>('ground');
+  const [zones, setZones] = useState<Zone[]>([]);
+  const t = useTheme();
   const today = getToday();
+
+  // Reload on focus, to pick up a zone just created from here.
+  useFocusEffect(
+    useCallback(() => {
+      listZones(db).then(setZones);
+    }, [db]),
+  );
 
   useEffect(() => {
     if (editingId === null) return;
@@ -69,11 +82,14 @@ export default function EditPlantScreen() {
       preset: preset.name,
       sun: preset.sun,
       waterEveryDays: preset.waterEveryDays,
+      waterColdDays: coldWateringDefault(preset.waterEveryDays),
     }));
     setTip(preset.tip);
   };
 
   const plan = planFor(presetFor(form)?.name);
+  const zone = zones.find((z) => z.id === form.zoneId);
+  const mismatch = zone ? sunMismatch(form.sun, zone.sun) : null;
 
   const save = async () => {
     const clean: PlantInput = {
@@ -86,7 +102,9 @@ export default function EditPlantScreen() {
     if (editingId === null) {
       // A plant with a plan goes into the ground through the transplant
       // screen, which picks the day and the plan's tasks.
-      const viaTransplant = start === 'ground' && !!plan;
+      const final = start === 'ground' || start === 'potted';
+      const viaTransplant = final && !!plan;
+      clean.potted = start === 'potted';
       if (start === 'sown') {
         Object.assign(clean, { stage: 'seedbed', sownOn: clean.sownOn ?? today, plantedOn: null });
       } else if (start === 'seedling' || viaTransplant) {
@@ -147,21 +165,30 @@ export default function EditPlantScreen() {
                   Ti ricordo di trapiantarla dopo {plan.sowToTransplantWeeks[0]}-{plan.sowToTransplantWeeks[1]} settimane.
                 </Body>
               ) : null}
-              {start === 'ground' && plan ? (
+              {(start === 'ground' || start === 'potted') && plan ? (
                 <Body muted style={{ marginTop: 8 }}>
-                  Dopo il salvataggio scegli quando l’hai messa a dimora e le attività del piano.
+                  Dopo il salvataggio scegli da quando è lì e le attività del piano.
                 </Body>
               ) : null}
             </Field>
           )}
+
+          {editingId !== null && form.stage === 'ground' ? (
+            <Field label="Dove">
+              <ChipRow>
+                <Chip label="🌳 In terra" selected={!form.potted} onPress={() => set('potted', false)} />
+                <Chip label="🪴 In vaso" selected={form.potted} onPress={() => set('potted', true)} />
+              </ChipRow>
+            </Field>
+          ) : null}
 
           {(editingId === null ? start === 'sown' : form.stage === 'seedbed' && form.sownOn) ? (
             <Field label="Seminata">
               <PastDayPicker value={form.sownOn ?? today} onChange={(d) => set('sownOn', d)} today={today} />
             </Field>
           ) : null}
-          {(editingId === null ? start === 'ground' && !plan : form.stage === 'ground' && form.plantedOn) ? (
-            <Field label="A dimora dal">
+          {(editingId === null ? (start === 'ground' || start === 'potted') && !plan : form.stage === 'ground' && form.plantedOn) ? (
+            <Field label={start === 'potted' || form.potted ? 'In vaso dal' : 'A dimora dal'}>
               <PastDayPicker value={form.plantedOn ?? today} onChange={(d) => set('plantedOn', d)} today={today} />
             </Field>
           ) : null}
@@ -172,17 +199,29 @@ export default function EditPlantScreen() {
           <Field label="Varietà (facoltativo)">
             <Input value={form.variety ?? ''} onChangeText={(v) => set('variety', v)} placeholder="Es. Cuore di bue" />
           </Field>
-          <Field label="Posizione (facoltativo)">
-            <Input value={form.location ?? ''} onChangeText={(v) => set('location', v)} placeholder="Es. Aiuola nord, vaso sul balcone" />
+          <Field label="Zona">
+            <ChipRow>
+              <Chip label="Nessuna" selected={form.zoneId === null} onPress={() => set('zoneId', null)} />
+              {zones.map((z) => (
+                <Chip
+                  key={z.id}
+                  label={`${SUN_ICON[z.sun]} ${z.name}`}
+                  selected={form.zoneId === z.id}
+                  onPress={() => set('zoneId', z.id)}
+                />
+              ))}
+              <Chip label="＋ Nuova zona" onPress={() => router.push('/zone/edit')} />
+            </ChipRow>
+            {mismatch ? <Body style={{ marginTop: 8, color: t.warn }}>⚠️ {mismatch}</Body> : null}
           </Field>
-          <Field label="Esposizione">
+          <Field label="Sole che le serve">
             <ChipRow>
               {SUNS.map((s) => (
                 <Chip key={s} label={`${SUN_ICON[s]} ${SUN_LABEL[s]}`} selected={form.sun === s} onPress={() => set('sun', s)} />
               ))}
             </ChipRow>
           </Field>
-          <Field label="Irrigazione">
+          <Field label="Irrigazione da maggio a settembre">
             <Stepper
               value={form.waterEveryDays}
               onChange={(v) => set('waterEveryDays', v)}
@@ -191,6 +230,17 @@ export default function EditPlantScreen() {
               format={(v) => (v === 1 ? 'Ogni giorno' : `Ogni ${v} giorni`)}
             />
           </Field>
+          {form.waterEveryDays ? (
+            <Field label="Irrigazione nel resto dell’anno">
+              <Stepper
+                value={form.waterColdDays}
+                onChange={(v) => set('waterColdDays', v)}
+                max={90}
+                allowOff="Come d’estate"
+                format={(v) => (v === 1 ? 'Ogni giorno' : `Ogni ${v} giorni`)}
+              />
+            </Field>
+          ) : null}
           <Field label="Note">
             <Input value={form.notes ?? ''} onChangeText={(v) => set('notes', v)} multiline placeholder="Concime, problemi, osservazioni…" />
           </Field>

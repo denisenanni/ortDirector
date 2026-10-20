@@ -1,11 +1,11 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { planFor, regularWateringFrom, seasonalTasks, transplantReminder, type PlannedTask } from './plans';
 import { presetFor } from './presets';
-import { completeTask, today } from './schedule';
-import type { DayString, LogEntry, Plant, Stage, Sun, Task, TaskType, TaskWithPlant } from './types';
+import { afterRain, completeTask, today } from './schedule';
+import type { DayString, LogEntry, Plant, Stage, Sun, Task, TaskType, TaskWithPlant, Zone } from './types';
 
 export const DATABASE_NAME = 'ortdirector.db';
-const DATABASE_VERSION = 3;
+const DATABASE_VERSION = 4;
 
 export async function migrate(db: SQLiteDatabase) {
   await db.execAsync('PRAGMA foreign_keys = ON;');
@@ -72,9 +72,56 @@ export async function migrate(db: SQLiteDatabase) {
     }
     version = 3;
   }
-  // Future migrations: if (version === 3) { ...; version = 4; }
+  if (version === 3) {
+    await db.execAsync(`
+      CREATE TABLE zones (
+        id INTEGER PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL,
+        sun TEXT NOT NULL,
+        covered INTEGER NOT NULL DEFAULT 0
+      );
+      ALTER TABLE plants ADD COLUMN zone_id INTEGER REFERENCES zones(id) ON DELETE SET NULL;
+      ALTER TABLE plants ADD COLUMN potted INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE plants ADD COLUMN water_cold_days INTEGER;
+      ALTER TABLE tasks ADD COLUMN cold_repeat_days INTEGER;
+    `);
+    // Each free-text position becomes a zone, with the sun of its first plant.
+    // Watering gets a rest-of-year interval, a third as frequent as in summer.
+    const plants = await db.getAllAsync<PlantRow>('SELECT * FROM plants ORDER BY id');
+    const zoneIds = new Map<string, number>();
+    for (const p of plants) {
+      const name = p.location?.trim();
+      const potted = /vaso|vasi|balcone|terrazz/i.test(`${name ?? ''} ${p.preset ?? p.name}`);
+      let zoneId: number | null = null;
+      if (name) {
+        const key = name.toLowerCase();
+        zoneId = zoneIds.get(key) ?? null;
+        if (zoneId === null) {
+          const covered = /serra|coperto|tettoia|casa|veranda/i.test(name) ? 1 : 0;
+          zoneId = (await db.runAsync('INSERT INTO zones (name, sun, covered) VALUES (?, ?, ?)', name, p.sun, covered))
+            .lastInsertRowId;
+          zoneIds.set(key, zoneId);
+        }
+      }
+      const cold = p.water_every_days ? coldWateringDefault(p.water_every_days) : null;
+      await db.runAsync(
+        'UPDATE plants SET zone_id = ?, potted = ?, water_cold_days = ? WHERE id = ?',
+        zoneId, potted ? 1 : 0, cold, p.id,
+      );
+      await db.runAsync(
+        `UPDATE tasks SET cold_repeat_days = ? WHERE plant_id = ? AND type = 'water'
+         AND repeat_days IS NOT NULL AND ends_on IS NULL`,
+        cold, p.id,
+      );
+    }
+    version = 4;
+  }
+  // Future migrations: if (version === 4) { ...; version = 5; }
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
 }
+
+/** A starting guess for the rest of the year: a third as often as in summer, at most every 3 weeks. */
+export const coldWateringDefault = (summer: number) => Math.min(summer * 3, 21);
 
 // --- Row mapping -----------------------------------------------------------
 
@@ -83,8 +130,11 @@ interface PlantRow {
   name: string;
   variety: string | null;
   location: string | null;
+  zone_id: number | null;
+  potted: number;
   sun: Sun;
   water_every_days: number | null;
+  water_cold_days: number | null;
   stage: Stage;
   sown_on: string | null;
   planted_on: string | null;
@@ -102,6 +152,7 @@ interface TaskRow {
   ends_on: string | null;
   yearly: number;
   months: string | null;
+  cold_repeat_days: number | null;
   done_on: string | null;
   notes: string | null;
   plant_name?: string | null;
@@ -112,8 +163,11 @@ const toPlant = (r: PlantRow): Plant => ({
   name: r.name,
   variety: r.variety,
   location: r.location,
+  zoneId: r.zone_id,
+  potted: r.potted === 1,
   sun: r.sun,
   waterEveryDays: r.water_every_days,
+  waterColdDays: r.water_cold_days,
   stage: r.stage,
   sownOn: r.sown_on,
   plantedOn: r.planted_on,
@@ -131,6 +185,7 @@ const toTask = (r: TaskRow): TaskWithPlant => ({
   endsOn: r.ends_on,
   yearly: r.yearly === 1,
   months: r.months ? r.months.split(',').map(Number) : null,
+  coldRepeatDays: r.cold_repeat_days,
   doneOn: r.done_on,
   notes: r.notes,
   plantName: r.plant_name ?? null,
@@ -162,17 +217,13 @@ export async function createPlant(db: SQLiteDatabase, p: PlantInput): Promise<nu
   let id = 0;
   await db.withTransactionAsync(async () => {
     const res = await db.runAsync(
-      `INSERT INTO plants (name, variety, location, sun, water_every_days, stage, sown_on, planted_on, preset, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      p.name, p.variety, p.location, p.sun, p.waterEveryDays, p.stage, p.sownOn, p.plantedOn, p.preset, p.notes,
+      `INSERT INTO plants (name, variety, location, zone_id, potted, sun, water_every_days, water_cold_days,
+       stage, sown_on, planted_on, preset, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      p.name, p.variety, p.location, p.zoneId, p.potted ? 1 : 0, p.sun, p.waterEveryDays, p.waterColdDays,
+      p.stage, p.sownOn, p.plantedOn, p.preset, p.notes,
     );
     id = res.lastInsertRowId;
-    if (p.waterEveryDays) {
-      await db.runAsync(
-        `INSERT INTO tasks (plant_id, type, title, due_on, repeat_days) VALUES (?, 'water', ?, ?, ?)`,
-        id, 'Annaffiare', today(), p.waterEveryDays,
-      );
-    }
+    if (p.waterEveryDays) await insertWaterTask(db, id, p);
     await syncTransplantReminder(db, id, p);
     for (const t of seasonalTasks(planFor(presetFor(p)?.name), today())) await insertTask(db, id, t);
   });
@@ -203,9 +254,10 @@ async function syncTransplantReminder(db: SQLiteDatabase, plantId: number, p: Pl
 export async function updatePlant(db: SQLiteDatabase, id: number, p: PlantInput) {
   await db.withTransactionAsync(async () => {
     await db.runAsync(
-      `UPDATE plants SET name = ?, variety = ?, location = ?, sun = ?, water_every_days = ?,
-       stage = ?, sown_on = ?, planted_on = ?, preset = ?, notes = ? WHERE id = ?`,
-      p.name, p.variety, p.location, p.sun, p.waterEveryDays, p.stage, p.sownOn, p.plantedOn, p.preset, p.notes, id,
+      `UPDATE plants SET name = ?, variety = ?, location = ?, zone_id = ?, potted = ?, sun = ?, water_every_days = ?,
+       water_cold_days = ?, stage = ?, sown_on = ?, planted_on = ?, preset = ?, notes = ? WHERE id = ?`,
+      p.name, p.variety, p.location, p.zoneId, p.potted ? 1 : 0, p.sun, p.waterEveryDays, p.waterColdDays,
+      p.stage, p.sownOn, p.plantedOn, p.preset, p.notes, id,
     );
     await syncTransplantReminder(db, id, p);
     // The regular watering task; plan watering has an end day.
@@ -215,16 +267,24 @@ export async function updatePlant(db: SQLiteDatabase, id: number, p: PlantInput)
       id,
     );
     if (p.waterEveryDays && water) {
-      await db.runAsync('UPDATE tasks SET repeat_days = ? WHERE id = ?', p.waterEveryDays, water.id);
-    } else if (p.waterEveryDays) {
       await db.runAsync(
-        `INSERT INTO tasks (plant_id, type, title, due_on, repeat_days) VALUES (?, 'water', ?, ?, ?)`,
-        id, 'Annaffiare', today(), p.waterEveryDays,
+        'UPDATE tasks SET repeat_days = ?, cold_repeat_days = ? WHERE id = ?',
+        p.waterEveryDays, p.waterColdDays, water.id,
       );
+    } else if (p.waterEveryDays) {
+      await insertWaterTask(db, id, p);
     } else if (water) {
       await db.runAsync('DELETE FROM tasks WHERE id = ?', water.id);
     }
   });
+}
+
+/** The plant's regular watering, due today. */
+async function insertWaterTask(db: SQLiteDatabase, plantId: number, p: PlantInput) {
+  await db.runAsync(
+    `INSERT INTO tasks (plant_id, type, title, due_on, repeat_days, cold_repeat_days) VALUES (?, 'water', ?, ?, ?, ?)`,
+    plantId, 'Annaffiare', today(), p.waterEveryDays, p.waterColdDays,
+  );
 }
 
 /**
@@ -232,21 +292,30 @@ export async function updatePlant(db: SQLiteDatabase, id: number, p: PlantInput)
  * reminder, logs the transplant and creates the chosen plan tasks. Regular
  * watering waits until the plan's establishment watering is over.
  */
-export async function transplant(db: SQLiteDatabase, plantId: number, day: DayString, tasks: PlannedTask[]) {
+export async function transplant(
+  db: SQLiteDatabase,
+  plantId: number,
+  day: DayString,
+  tasks: PlannedTask[],
+  potted: boolean,
+) {
   const plant = await getPlant(db, plantId);
   if (!plant) return;
   const plan = planFor(presetFor(plant)?.name);
   const establishing = tasks.some((t) => t.type === 'water' && t.endsOn);
   const waterFrom = plan && establishing ? regularWateringFrom(plan.steps, day) : null;
   await db.withTransactionAsync(async () => {
-    await db.runAsync(`UPDATE plants SET stage = 'ground', planted_on = ? WHERE id = ?`, day, plantId);
+    await db.runAsync(
+      `UPDATE plants SET stage = 'ground', planted_on = ?, potted = ? WHERE id = ?`,
+      day, potted ? 1 : 0, plantId,
+    );
     await db.runAsync(
       `UPDATE tasks SET done_on = ? WHERE plant_id = ? AND type = 'transplant' AND done_on IS NULL`,
       day, plantId,
     );
     await db.runAsync(
       `INSERT INTO task_log (plant_id, type, title, done_on) VALUES (?, 'transplant', ?, ?)`,
-      plantId, 'Messa a dimora', day,
+      plantId, potted ? 'Messa nel vaso definitivo' : 'Messa a dimora', day,
     );
     if (waterFrom) {
       await db.runAsync(
@@ -267,7 +336,7 @@ export async function deletePlant(db: SQLiteDatabase, id: number) {
 
 export type TaskInput = Pick<
   Task,
-  'plantId' | 'type' | 'title' | 'dueOn' | 'repeatDays' | 'endsOn' | 'yearly' | 'months' | 'notes'
+  'plantId' | 'type' | 'title' | 'dueOn' | 'repeatDays' | 'endsOn' | 'yearly' | 'months' | 'coldRepeatDays' | 'notes'
 >;
 
 const monthsText = (months: number[] | null) => (months?.length ? months.join(',') : null);
@@ -275,12 +344,13 @@ const monthsText = (months: number[] | null) => (months?.length ? months.join(',
 async function insertTask(
   db: SQLiteDatabase,
   plantId: number | null,
-  t: Omit<TaskInput, 'plantId' | 'notes'> & { notes?: string | null },
+  t: Omit<TaskInput, 'plantId' | 'notes' | 'coldRepeatDays'> & { notes?: string | null; coldRepeatDays?: number | null },
 ): Promise<number> {
   const res = await db.runAsync(
-    `INSERT INTO tasks (plant_id, type, title, due_on, repeat_days, ends_on, yearly, months, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    plantId, t.type, t.title, t.dueOn, t.repeatDays, t.endsOn, t.yearly ? 1 : 0, monthsText(t.months), t.notes ?? null,
+    `INSERT INTO tasks (plant_id, type, title, due_on, repeat_days, ends_on, yearly, months, cold_repeat_days, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    plantId, t.type, t.title, t.dueOn, t.repeatDays, t.endsOn, t.yearly ? 1 : 0, monthsText(t.months),
+    t.coldRepeatDays ?? null, t.notes ?? null,
   );
   return res.lastInsertRowId;
 }
@@ -312,8 +382,9 @@ export async function createTask(db: SQLiteDatabase, t: TaskInput): Promise<numb
 export async function updateTask(db: SQLiteDatabase, id: number, t: TaskInput) {
   await db.runAsync(
     `UPDATE tasks SET plant_id = ?, type = ?, title = ?, due_on = ?, repeat_days = ?, ends_on = ?,
-     yearly = ?, months = ?, notes = ? WHERE id = ?`,
-    t.plantId, t.type, t.title, t.dueOn, t.repeatDays, t.endsOn, t.yearly ? 1 : 0, monthsText(t.months), t.notes, id,
+     yearly = ?, months = ?, cold_repeat_days = ?, notes = ? WHERE id = ?`,
+    t.plantId, t.type, t.title, t.dueOn, t.repeatDays, t.endsOn, t.yearly ? 1 : 0, monthsText(t.months),
+    t.coldRepeatDays, t.notes, id,
   );
 }
 
@@ -341,12 +412,72 @@ export async function postpone(db: SQLiteDatabase, task: Task, toDay: DayString)
   await db.runAsync('UPDATE tasks SET due_on = ? WHERE id = ?', toDay, task.id);
 }
 
+/**
+ * "It rained": every open watering task counts as watered today, except for
+ * plants in a covered zone (greenhouse, under a roof). Pots outdoors get the
+ * rain too. Returns how many tasks moved.
+ */
+export async function rained(db: SQLiteDatabase, day: DayString = today()): Promise<number> {
+  const rows = await db.getAllAsync<TaskRow>(
+    `SELECT t.* FROM tasks t JOIN plants p ON p.id = t.plant_id
+     LEFT JOIN zones z ON z.id = p.zone_id
+     WHERE t.type = 'water' AND t.done_on IS NULL AND t.repeat_days IS NOT NULL
+     AND COALESCE(z.covered, 0) = 0`,
+  );
+  let moved = 0;
+  await db.withTransactionAsync(async () => {
+    for (const r of rows) {
+      const t = toTask(r);
+      const due = afterRain(t, day);
+      if (due === t.dueOn) continue;
+      await db.runAsync('UPDATE tasks SET due_on = ? WHERE id = ?', due, t.id);
+      moved++;
+    }
+  });
+  return moved;
+}
+
 export async function listPlantLog(db: SQLiteDatabase, plantId: number, limit = 20): Promise<LogEntry[]> {
   return db.getAllAsync<LogEntry>(
     `SELECT id, task_id AS taskId, plant_id AS plantId, type, title, done_on AS doneOn
      FROM task_log WHERE plant_id = ? ORDER BY done_on DESC, id DESC LIMIT ?`,
     plantId, limit,
   );
+}
+
+// --- Zones -----------------------------------------------------------------
+
+interface ZoneRow {
+  id: number;
+  name: string;
+  sun: Sun;
+  covered: number;
+}
+
+const toZone = (r: ZoneRow): Zone => ({ id: r.id, name: r.name, sun: r.sun, covered: r.covered === 1 });
+
+export async function listZones(db: SQLiteDatabase): Promise<Zone[]> {
+  const rows = await db.getAllAsync<ZoneRow>('SELECT * FROM zones ORDER BY name COLLATE NOCASE');
+  return rows.map(toZone);
+}
+
+export async function getZone(db: SQLiteDatabase, id: number): Promise<Zone | null> {
+  const row = await db.getFirstAsync<ZoneRow>('SELECT * FROM zones WHERE id = ?', id);
+  return row ? toZone(row) : null;
+}
+
+export async function saveZone(db: SQLiteDatabase, z: Omit<Zone, 'id'> & { id?: number }): Promise<number> {
+  if (z.id) {
+    await db.runAsync('UPDATE zones SET name = ?, sun = ?, covered = ? WHERE id = ?', z.name, z.sun, z.covered ? 1 : 0, z.id);
+    return z.id;
+  }
+  const res = await db.runAsync('INSERT INTO zones (name, sun, covered) VALUES (?, ?, ?)', z.name, z.sun, z.covered ? 1 : 0);
+  return res.lastInsertRowId;
+}
+
+/** Deletes the zone; its plants stay, without a zone. */
+export async function deleteZone(db: SQLiteDatabase, id: number) {
+  await db.runAsync('DELETE FROM zones WHERE id = ?', id);
 }
 
 // --- Settings --------------------------------------------------------------
