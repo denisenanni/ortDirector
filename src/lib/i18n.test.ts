@@ -2,9 +2,9 @@
 import assert from 'node:assert/strict';
 import { afterEach, test } from 'node:test';
 import { CATALOG_EN } from './catalog-en.ts';
-import { cat, setLanguage, tr } from './i18n.ts';
+import { cat, local, setLanguage, tr } from './i18n.ts';
 import { planFor } from './plans.ts';
-import { PLANT_PRESETS, SUN_LABEL, TASK_LABEL, monthsLabel, presetFor, repeatLabel } from './presets.ts';
+import { PLANT_PRESETS, SUN_LABEL, TASK_LABEL, monthsLabel, presetFor, repeatLabel, searchPresets } from './presets.ts';
 import { relativeLabel } from './schedule.ts';
 
 afterEach(() => setLanguage('it'));
@@ -39,4 +39,27 @@ test('English switches labels, catalog and dates', () => {
 test('a plant named in English still finds its catalog entry', () => {
   setLanguage('en');
   assert.equal(presetFor({ preset: null, name: 'Tomato' })?.name, 'Pomodoro');
+});
+
+test('saved catalog text follows the app language, typed text stays', () => {
+  assert.equal(local('Peperoncino'), 'Peperoncino');
+  assert.equal(local('Chilli pepper'), 'Peperoncino');
+  assert.equal(local('Water'), 'Annaffiare');
+  assert.equal(local('Il mio limone'), 'Il mio limone');
+  setLanguage('en');
+  assert.equal(local('Peperoncino'), 'Chilli pepper');
+  assert.equal(local('Annaffiare (attecchimento)'), 'Water (settling in)');
+  assert.equal(local('Messa a dimora'), 'Planted out');
+});
+
+test('catalog search by name, plural and group', () => {
+  const names = (q: string) => searchPresets(q).map((p) => p.name);
+  assert.deepEqual(names('pomodori'), ['Pomodoro']);
+  assert.ok(names('insalata').includes('Lattuga') && names('insalata').includes('Scarola'));
+  assert.ok(names('cavolo').includes('Verza') && names('cavolo').includes('Broccolo'));
+  assert.equal(names('cavolo')[0], 'Cavolfiore');
+  assert.ok(names('aromatiche').includes('Basilico'));
+  assert.deepEqual(names('Peperóncino'), ['Peperoncino']);
+  assert.ok(names('tomato').includes('Pomodoro'));
+  assert.deepEqual(names(''), []);
 });

@@ -1,7 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { BACKUP_TABLES, insertFor, makeBackup, type Backup, type Row } from './backup';
 import { planFor, regularWateringFrom, seasonalTasks, transplantReminder, type PlannedTask } from './plans';
-import { tr } from './i18n';
+import { local, tr } from './i18n';
 import { isAnnual, presetFor } from './presets';
 import { afterRain, completeTask, today } from './schedule';
 import type { DayString, DoneEntry, LogEntry, Plant, Stage, Sun, Task, TaskType, TaskWithPlant, Zone } from './types';
@@ -179,7 +179,7 @@ interface TaskRow {
 
 const toPlant = (r: PlantRow): Plant => ({
   id: r.id,
-  name: r.name,
+  name: local(r.name),
   variety: r.variety,
   location: r.location,
   zoneId: r.zone_id,
@@ -201,7 +201,7 @@ const toTask = (r: TaskRow): TaskWithPlant => ({
   id: r.id,
   plantId: r.plant_id,
   type: r.type,
-  title: r.title,
+  title: local(r.title),
   dueOn: r.due_on,
   repeatDays: r.repeat_days,
   endsOn: r.ends_on,
@@ -210,7 +210,7 @@ const toTask = (r: TaskRow): TaskWithPlant => ({
   coldRepeatDays: r.cold_repeat_days,
   doneOn: r.done_on,
   notes: r.notes,
-  plantName: r.plant_name ?? null,
+  plantName: r.plant_name === null || r.plant_name === undefined ? null : local(r.plant_name),
   zoneName: r.zone_name ?? null,
 });
 
@@ -462,13 +462,14 @@ export async function markDone(db: SQLiteDatabase, task: Task, doneOn: DayString
 
 /** What was done on `day`, with plant and zone names, for the checked rows in Oggi. */
 export async function listDoneOn(db: SQLiteDatabase, day: DayString = today()): Promise<DoneEntry[]> {
-  return db.getAllAsync<DoneEntry>(
+  const rows = await db.getAllAsync<DoneEntry>(
     `SELECT l.id, l.task_id AS taskId, l.plant_id AS plantId, l.type, l.title, l.done_on AS doneOn,
        l.prev_due_on AS prevDueOn, p.name AS plantName, z.name AS zoneName
      FROM task_log l LEFT JOIN plants p ON p.id = l.plant_id LEFT JOIN zones z ON z.id = p.zone_id
      WHERE l.done_on = ? ORDER BY l.id`,
     day,
   );
+  return rows.map((e) => ({ ...e, title: local(e.title), plantName: e.plantName === null ? null : local(e.plantName) }));
 }
 
 /**
@@ -565,11 +566,12 @@ export async function undoRain(db: SQLiteDatabase): Promise<void> {
 }
 
 export async function listPlantLog(db: SQLiteDatabase, plantId: number, limit = 20): Promise<LogEntry[]> {
-  return db.getAllAsync<LogEntry>(
+  const rows = await db.getAllAsync<LogEntry>(
     `SELECT id, task_id AS taskId, plant_id AS plantId, type, title, done_on AS doneOn
      FROM task_log WHERE plant_id = ? ORDER BY done_on DESC, id DESC LIMIT ?`,
     plantId, limit,
   );
+  return rows.map((e) => ({ ...e, title: local(e.title) }));
 }
 
 // --- Zones -----------------------------------------------------------------

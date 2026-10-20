@@ -49,6 +49,38 @@ export function cat(text: string): string {
   return current === 'en' ? (CATALOG_EN[text] ?? text) : text;
 }
 
+// Titles the app itself saves with tasks and history, beyond the catalog.
+const SAVED_EN: Record<string, string> = {
+  Annaffiare: 'Water',
+  Controllo: 'Check',
+  Potatura: 'Prune',
+  Concimazione: 'Feed',
+  Trattamento: 'Treat',
+  Raccolta: 'Harvest',
+  Trapianto: 'Transplant',
+  Altro: 'Other',
+  'Pronta da trapiantare': 'Ready to transplant',
+  'Messa a dimora': 'Planted out',
+  'Messa nel vaso definitivo': 'Potted up',
+};
+let toItalian: Record<string, string> | null = null;
+
+/**
+ * Text saved in the database in either language (plant names from the
+ * catalog, task and history titles), shown in the app's language. Text the
+ * user typed matches nothing and comes back as is.
+ */
+export function local(text: string): string {
+  if (current === 'en') return SAVED_EN[text] ?? CATALOG_EN[text] ?? text;
+  if (!toItalian) {
+    toItalian = {};
+    for (const map of [CATALOG_EN, SAVED_EN]) {
+      for (const [it, en] of Object.entries(map)) toItalian[en] ??= it;
+    }
+  }
+  return toItalian[text] ?? text;
+}
+
 /** "1 giorno" / "3 giorni", "1 day" / "3 days". */
 export function days(n: number): string {
   return current === 'en' ? (n === 1 ? '1 day' : `${n} days`) : n === 1 ? '1 giorno' : `${n} giorni`;

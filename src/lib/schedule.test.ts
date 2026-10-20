@@ -134,6 +134,7 @@ test('sunMismatch flags sun lovers in the shade and shade plants in full sun', (
   assert.ok(sunMismatch('full', 'partial'));
   assert.ok(sunMismatch('full', 'shade'));
   assert.ok(sunMismatch('shade', 'full'));
+  assert.ok(sunMismatch('partial', 'shade'));
   assert.equal(sunMismatch('partial', 'full'), null);
   assert.equal(sunMismatch('shade', 'partial'), null);
   assert.equal(sunMismatch('full', 'full'), null);
