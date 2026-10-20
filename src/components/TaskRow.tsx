@@ -5,6 +5,7 @@ import { daysBetween, fromDay, intervalOn, relativeLabel } from '@/lib/schedule'
 import type { DoneEntry, TaskType, TaskWithPlant } from '@/lib/types';
 import { Icon, TASK_SYMBOL } from './Icon';
 import { IconTile, useTheme, type Tone } from './ui';
+import { locale, tr } from '@/lib/i18n';
 
 export const TASK_TONE: Record<TaskType, Tone> = {
   water: 'water',
@@ -36,7 +37,7 @@ export function TaskRow({
   const repeat = repeatLabel({ ...task, repeatDays: intervalOn(task, today), coldRepeatDays: null });
   const until =
     (task.repeatDays || task.yearly) && task.endsOn
-      ? ` fino al ${fromDay(task.endsOn).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}`
+      ? ` ${tr('fino al', 'until')} ${fromDay(task.endsOn).toLocaleDateString(locale(), { day: 'numeric', month: 'short' })}`
       : '';
   return (
     <View style={styles.row}>
@@ -57,7 +58,7 @@ export function TaskRow({
       </Pressable>
       <Pressable
         accessibilityRole="checkbox"
-        accessibilityLabel={`Segna come fatto: ${task.title}`}
+        accessibilityLabel={tr(`Segna come fatto: ${task.title}`, `Mark as done: ${task.title}`)}
         onPress={() => (task.type === 'transplant' ? openTransplant(task) : onDone(task))}
         hitSlop={12}
         style={[styles.check, { borderColor: overdue ? t.warn : t.accent }]}
@@ -78,13 +79,13 @@ export function DoneRow({ entry, onUndo }: { entry: DoneEntry; onUndo: (e: DoneE
         <View style={{ flex: 1 }}>
           <Text style={[styles.title, { color: t.text, textDecorationLine: 'line-through' }]}>{entry.title}</Text>
           {where ? <Text style={[styles.where, { color: t.text }]}>{where}</Text> : null}
-          <Text style={[styles.meta, { color: t.muted }]}>Fatto oggi</Text>
+          <Text style={[styles.meta, { color: t.muted }]}>{tr('Fatto oggi', 'Done today')}</Text>
         </View>
       </View>
       <Pressable
         accessibilityRole="checkbox"
         accessibilityState={{ checked: true, disabled: !undoable }}
-        accessibilityLabel={`Fatto: ${entry.title}${undoable ? '. Tocca per annullare' : ''}`}
+        accessibilityLabel={tr(`Fatto: ${entry.title}`, `Done: ${entry.title}`) + (undoable ? tr('. Tocca per annullare', '. Tap to undo') : '')}
         onPress={() => undoable && onUndo(entry)}
         disabled={!undoable}
         hitSlop={12}

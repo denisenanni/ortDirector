@@ -8,6 +8,7 @@ import { confirm, notify } from '@/lib/dialogs';
 import { SUN_LABEL } from '@/lib/presets';
 import type { Sun, Zone } from '@/lib/types';
 import { SUN_SYMBOL } from '@/components/Icon';
+import { tr } from '@/lib/i18n';
 
 const SUNS: Sun[] = ['full', 'partial', 'shade'];
 
@@ -34,13 +35,18 @@ export default function EditZoneScreen() {
     const { total, archived } = await countZonePlants(db, editingId);
     if (total > 0) {
       const one = total === 1;
-      const what = one ? 'C’è ancora 1 pianta' : `Ci sono ancora ${total} piante`;
-      const inArchive = archived > 0 ? ` (${archived} in archivio)` : '';
-      const fix = one ? 'Spostala in un’altra zona o eliminala' : 'Spostale in un’altra zona o eliminale';
-      notify('Non puoi eliminare la zona', `${what} in questa zona${inArchive}. ${fix}, poi riprova.`);
+      const what = one ? tr('C’è ancora 1 pianta', 'There is still 1 plant') : tr(`Ci sono ancora ${total} piante`, `There are still ${total} plants`);
+      const inArchive = archived > 0 ? tr(` (${archived} in archivio)`, ` (${archived} archived)`) : '';
+      const fix = one
+        ? tr('Spostala in un’altra zona o eliminala', 'Move it to another zone or delete it')
+        : tr('Spostale in un’altra zona o eliminale', 'Move them to another zone or delete them');
+      notify(
+        tr('Non puoi eliminare la zona', 'You can’t delete the zone'),
+        tr(`${what} in questa zona${inArchive}. ${fix}, poi riprova.`, `${what} in this zone${inArchive}. ${fix}, then try again.`),
+      );
       return;
     }
-    if (!(await confirm('Eliminare la zona?', 'La zona è vuota.', 'Elimina', true))) return;
+    if (!(await confirm(tr('Eliminare la zona?', 'Delete the zone?'), tr('La zona è vuota.', 'The zone is empty.'), tr('Elimina', 'Delete'), true))) return;
     await deleteZone(db, editingId);
     router.back();
   };
@@ -49,14 +55,14 @@ export default function EditZoneScreen() {
     <Screen>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
-          <Field label="Nome">
+          <Field label={tr('Nome', 'Name')}>
             <Input
               value={form.name}
               onChangeText={(name) => setForm((f) => ({ ...f, name }))}
-              placeholder="Es. Aiuola nord, vasi del balcone, serra"
+              placeholder={tr('Es. Aiuola nord, vasi del balcone, serra', 'E.g. North bed, balcony pots, greenhouse')}
             />
           </Field>
-          <Field label="Sole che prende davvero">
+          <Field label={tr('Sole che prende davvero', 'Sun it really gets')}>
             <ChipRow>
               {SUNS.map((s) => (
                 <Chip
@@ -69,21 +75,27 @@ export default function EditZoneScreen() {
               ))}
             </ChipRow>
             <Body muted style={{ marginTop: 8 }}>
-              Pieno sole: almeno 6 ore di sole diretto. Mezz’ombra: 3-6 ore. Ombra: meno di 3.
+              {tr(
+                'Pieno sole: almeno 6 ore di sole diretto. Mezz’ombra: 3-6 ore. Ombra: meno di 3.',
+                'Full sun: at least 6 hours of direct sun. Part shade: 3-6 hours. Shade: under 3.',
+              )}
             </Body>
           </Field>
-          <Field label="Pioggia">
+          <Field label={tr('Pioggia', 'Rain')}>
             <ChipRow>
-              <Chip icon="rain" label="All’aperto" selected={!form.covered} onPress={() => setForm((f) => ({ ...f, covered: false }))} />
-              <Chip icon="covered" label="Al coperto" selected={form.covered} onPress={() => setForm((f) => ({ ...f, covered: true }))} />
+              <Chip icon="rain" label={tr('All’aperto', 'Outdoors')} selected={!form.covered} onPress={() => setForm((f) => ({ ...f, covered: false }))} />
+              <Chip icon="covered" label={tr('Al coperto', 'Covered')} selected={form.covered} onPress={() => setForm((f) => ({ ...f, covered: true }))} />
             </ChipRow>
             <Body muted style={{ marginTop: 8 }}>
-              Al coperto (serra, tettoia, in casa) la pioggia non conta come annaffiatura.
+              {tr(
+                'Al coperto (serra, tettoia, in casa) la pioggia non conta come annaffiatura.',
+                'Under cover (greenhouse, shelter, indoors) rain doesn’t count as watering.',
+              )}
             </Body>
           </Field>
 
-          <Button label="Salva" onPress={save} disabled={!form.name.trim()} />
-          {editingId !== null && <Button kind="danger" label="Elimina zona" onPress={remove} />}
+          <Button label={tr('Salva', 'Save')} onPress={save} disabled={!form.name.trim()} />
+          {editingId !== null && <Button kind="danger" label={tr('Elimina zona', 'Delete zone')} onPress={remove} />}
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>

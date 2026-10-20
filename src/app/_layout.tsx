@@ -1,9 +1,12 @@
+// First, so every module below sees the phone's language.
+import '@/lib/locale';
 import { Fraunces_600SemiBold, useFonts } from '@expo-google-fonts/fraunces';
 import { Stack } from 'expo-router';
 import { SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { useTheme } from '@/components/ui';
 import { DATABASE_NAME, migrate } from '@/lib/db';
+import { tr } from '@/lib/i18n';
 import '@/lib/notifications';
 
 export default function RootLayout() {
@@ -20,15 +23,15 @@ export default function RootLayout() {
           headerTitleStyle: { color: t.text, fontFamily: 'Fraunces_600SemiBold' },
           headerShadowVisible: false,
           contentStyle: { backgroundColor: t.bg },
-          headerBackTitle: 'Indietro',
+          headerBackTitle: tr('Indietro', 'Back'),
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="plant/[id]" options={{ title: '' }} />
-        <Stack.Screen name="plant/edit" options={{ presentation: 'modal', title: 'Pianta' }} />
-        <Stack.Screen name="plant/transplant" options={{ presentation: 'modal', title: 'Trapianto' }} />
-        <Stack.Screen name="zone/edit" options={{ presentation: 'modal', title: 'Zona' }} />
-        <Stack.Screen name="task/edit" options={{ presentation: 'modal', title: 'Attività' }} />
+        <Stack.Screen name="plant/edit" options={{ presentation: 'modal', title: tr('Pianta', 'Plant') }} />
+        <Stack.Screen name="plant/transplant" options={{ presentation: 'modal', title: tr('Trapianto', 'Transplant') }} />
+        <Stack.Screen name="zone/edit" options={{ presentation: 'modal', title: tr('Zona', 'Zone') }} />
+        <Stack.Screen name="task/edit" options={{ presentation: 'modal', title: tr('Attività', 'Task') }} />
       </Stack>
     </SQLiteProvider>
   );

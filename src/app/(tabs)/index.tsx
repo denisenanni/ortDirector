@@ -9,6 +9,7 @@ import { listDoneOn, listOpenTasks, markDone, rained, undoDone } from '@/lib/db'
 import { ensurePermission, syncReminders } from '@/lib/notifications';
 import { addDays, daysBetween, fromDay, today as getToday } from '@/lib/schedule';
 import type { DoneEntry, TaskWithPlant } from '@/lib/types';
+import { locale, tr } from '@/lib/i18n';
 
 export default function TodayScreen() {
   const db = useSQLiteContext();
@@ -48,8 +49,11 @@ export default function TodayScreen() {
     const moved = await rained(db);
     setRainNote(
       moved === 0
-        ? 'Nessuna annaffiatura da spostare.'
-        : `Spostate ${moved === 1 ? '1 annaffiatura' : `${moved} annaffiature`}, tranne le zone al coperto.`,
+        ? tr('Nessuna annaffiatura da spostare.', 'No watering to move.')
+        : tr(
+            `Spostate ${moved === 1 ? '1 annaffiatura' : `${moved} annaffiature`}, tranne le zone al coperto.`,
+            `Moved ${moved === 1 ? '1 watering' : `${moved} waterings`}, except in covered zones.`,
+          ),
     );
     await load();
     syncReminders(db);
@@ -66,20 +70,22 @@ export default function TodayScreen() {
   const summary =
     due.length === 0
       ? tasks.length > 0 || done.length > 0
-        ? 'Per oggi è tutto fatto.'
+        ? tr('Per oggi è tutto fatto.', 'All done for today.')
         : null
-      : `${due.length === 1 ? '1 cosa da fare' : `${due.length} cose da fare`}` +
-        (late > 0 ? `, ${late === 1 ? '1 in ritardo' : `${late} in ritardo`}` : '');
-  const dateLine = fromDay(today).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
+      : tr(
+          due.length === 1 ? '1 cosa da fare' : `${due.length} cose da fare`,
+          due.length === 1 ? '1 thing to do' : `${due.length} things to do`,
+        ) + (late > 0 ? tr(`, ${late} in ritardo`, `, ${late} late`) : '');
+  const dateLine = fromDay(today).toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
         <LargeHeader
           eyebrow={dateLine}
-          title="Oggi"
+          title={tr('Oggi', 'Today')}
           subtitle={summary}
-          right={<IconButton icon="add" label="Nuova attività" filled onPress={() => router.push('/task/edit')} />}
+          right={<IconButton icon="add" label={tr('Nuova attività', 'New task')} filled onPress={() => router.push('/task/edit')} />}
         />
 
         {tasks.some((task) => task.type === 'water') && (
@@ -102,32 +108,35 @@ export default function TodayScreen() {
             ]}
           >
             <Icon name="rain" size={18} color={t.water} />
-            <Text style={{ color: t.water, fontSize: 15, fontWeight: '600' }}>Ha piovuto</Text>
+            <Text style={{ color: t.water, fontSize: 15, fontWeight: '600' }}>{tr('Ha piovuto', 'It rained')}</Text>
           </Pressable>
         )}
         {rainNote ? <Body muted style={{ marginTop: 8 }}>{rainNote}</Body> : null}
 
         {tasks.length === 0 && done.length === 0 ? (
           <Empty
-            title="Niente da fare"
-            hint="Aggiungi una pianta con un intervallo di irrigazione, o crea un’attività con il +."
+            title={tr('Niente da fare', 'Nothing to do')}
+            hint={tr(
+              'Aggiungi una pianta con un intervallo di irrigazione, o crea un’attività con il +.',
+              'Add a plant with a watering interval, or create a task with the +.',
+            )}
           />
         ) : null}
 
         {(due.length > 0 || done.length > 0) && (
-          <SectionHeader count={due.length > 0 ? due.length : undefined}>Da fare oggi</SectionHeader>
+          <SectionHeader count={due.length > 0 ? due.length : undefined}>{tr('Da fare oggi', 'To do today')}</SectionHeader>
         )}
         <Group>
           {due.map((task) => <TaskRow key={task.id} task={task} today={today} onDone={onDone} />)}
           {done.map((e) => <DoneRow key={`done-${e.id}`} entry={e} onUndo={onUndo} />)}
         </Group>
 
-        {soon.length > 0 && <SectionHeader count={soon.length}>Prossimi 7 giorni</SectionHeader>}
+        {soon.length > 0 && <SectionHeader count={soon.length}>{tr('Prossimi 7 giorni', 'Next 7 days')}</SectionHeader>}
         <Group>
           {soon.map((task) => <TaskRow key={task.id} task={task} today={today} onDone={onDone} />)}
         </Group>
 
-        {later.length > 0 && <SectionHeader>Più avanti</SectionHeader>}
+        {later.length > 0 && <SectionHeader>{tr('Più avanti', 'Later')}</SectionHeader>}
         <Group>
           {later.map((task) => <TaskRow key={task.id} task={task} today={today} onDone={onDone} />)}
         </Group>

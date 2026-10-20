@@ -17,6 +17,7 @@ import {
 } from '@/lib/db';
 import { fromDay, today } from '@/lib/schedule';
 import { ensurePermission, syncReminders } from '@/lib/notifications';
+import { locale, tr } from '@/lib/i18n';
 
 export default function SettingsScreen() {
   const db = useSQLiteContext();
@@ -55,7 +56,7 @@ export default function SettingsScreen() {
       setLast(today());
       setBackupNote(null);
     } catch (e) {
-      setBackupNote({ text: `Esportazione non riuscita: ${(e as Error).message}`, error: true });
+      setBackupNote({ text: tr('Esportazione non riuscita: ', 'Export failed: ') + (e as Error).message, error: true });
     }
   };
 
@@ -64,7 +65,7 @@ export default function SettingsScreen() {
     try {
       text = await pickBackupFile();
     } catch (e) {
-      setBackupNote({ text: `Non riesco a leggere il file: ${(e as Error).message}`, error: true });
+      setBackupNote({ text: tr('Non riesco a leggere il file: ', 'Can’t read the file: ') + (e as Error).message, error: true });
       return;
     }
     if (text === null) return;
@@ -75,33 +76,39 @@ export default function SettingsScreen() {
       setBackupNote({ text: (e as Error).message, error: true });
       return;
     }
-    const day = backup.exportedAt ? new Date(backup.exportedAt).toLocaleDateString('it-IT') : 'data sconosciuta';
-    const summary = `${backup.tables.plants.length} piante e ${backup.tables.tasks.length} attività, salvato il ${day}`;
+    const day = backup.exportedAt ? new Date(backup.exportedAt).toLocaleDateString(locale()) : tr('data sconosciuta', 'unknown date');
+    const summary = tr(
+      `${backup.tables.plants.length} piante e ${backup.tables.tasks.length} attività, salvato il ${day}`,
+      `${backup.tables.plants.length} plants and ${backup.tables.tasks.length} tasks, saved on ${day}`,
+    );
     const run = async () => {
       await importBackup(db, backup);
-      setBackupNote({ text: `Backup importato: ${summary}.` });
+      setBackupNote({ text: tr(`Backup importato: ${summary}.`, `Backup imported: ${summary}.`) });
       getReminderHour(db).then(setHour);
       getLastBackup(db).then(setLast);
       syncReminders(db);
     };
-    const question = `Il backup (${summary}) sostituisce tutti i dati attuali.`;
+    const question = tr(
+      `Il backup (${summary}) sostituisce tutti i dati attuali.`,
+      `The backup (${summary}) replaces all current data.`,
+    );
     if (Platform.OS === 'web') {
       if (window.confirm(question)) await run();
       return;
     }
-    Alert.alert('Importare il backup?', question, [
-      { text: 'Annulla', style: 'cancel' },
-      { text: 'Sostituisci', style: 'destructive', onPress: run },
+    Alert.alert(tr('Importare il backup?', 'Import the backup?'), question, [
+      { text: tr('Annulla', 'Cancel'), style: 'cancel' },
+      { text: tr('Sostituisci', 'Replace'), style: 'destructive', onPress: run },
     ]);
   };
 
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-        <LargeHeader title="Impostazioni" />
-        <SectionHeader>Promemoria</SectionHeader>
+        <LargeHeader title={tr('Impostazioni', 'Settings')} />
+        <SectionHeader>{tr('Promemoria', 'Reminders')}</SectionHeader>
         <Card>
-          <Field label="Ora del promemoria giornaliero">
+          <Field label={tr('Ora del promemoria giornaliero', 'Daily reminder time')}>
             {hour !== null && (
               <Stepper
                 value={hour}
@@ -113,28 +120,33 @@ export default function SettingsScreen() {
             )}
           </Field>
           <Body muted>
-            Ogni giorno con attività in scadenza ricevi una sola notifica a quest’ora, con l’elenco di cosa fare.
+            {tr(
+              'Ogni giorno con attività in scadenza ricevi una sola notifica a quest’ora, con l’elenco di cosa fare.',
+              'On each day with tasks due you get a single notification at this time, listing what to do.',
+            )}
           </Body>
           {granted === false && (
             <>
-              <Body style={{ marginTop: 18 }}>Le notifiche sono disattivate.</Body>
-              <Button label="Attiva notifiche" onPress={enable} />
+              <Body style={{ marginTop: 18 }}>{tr('Le notifiche sono disattivate.', 'Notifications are turned off.')}</Body>
+              <Button label={tr('Attiva notifiche', 'Turn on notifications')} onPress={enable} />
             </>
           )}
         </Card>
         <SectionHeader>Backup</SectionHeader>
         <Card>
           <Body muted>
-            I dati restano solo su questo telefono: se lo perdi, perdi tutto. Esporta un backup ogni tanto e salvalo su
-            iCloud Drive o dove vuoi. Le foto delle piante non sono nel backup.
+            {tr(
+              'I dati restano solo su questo telefono: se lo perdi, perdi tutto. Esporta un backup ogni tanto e salvalo su iCloud Drive o dove vuoi. Le foto delle piante non sono nel backup.',
+              'Your data stays on this phone only: lose the phone and you lose everything. Export a backup now and then and keep it on iCloud Drive or wherever you like. Plant photos are not in the backup.',
+            )}
           </Body>
           {lastBackup ? (
             <Body muted style={{ marginTop: 6 }}>
-              Ultimo backup: {fromDay(lastBackup).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}
+              {tr('Ultimo backup:', 'Last backup:')} {fromDay(lastBackup).toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric' })}
             </Body>
           ) : null}
-          <Button label="Esporta backup" onPress={doExport} />
-          <Button kind="secondary" label="Importa backup" onPress={doImport} />
+          <Button label={tr('Esporta backup', 'Export backup')} onPress={doExport} />
+          <Button kind="secondary" label={tr('Importa backup', 'Import backup')} onPress={doImport} />
           {backupNote ? (
             <Body style={{ marginTop: 8, color: backupNote.error ? t.danger : t.muted }}>{backupNote.text}</Body>
           ) : null}

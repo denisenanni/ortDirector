@@ -1,6 +1,7 @@
 // Care plans from the catalog: what to do after a plant goes into its final
 // spot, counted from that day. Pure logic, no React Native imports, so it runs
 // under `node --test` (see plans.test.ts).
+import { cat, tr } from './i18n.ts';
 import { addDays, nextInSeason } from './schedule.ts';
 import type { DayString, TaskType } from './types';
 
@@ -365,7 +366,7 @@ export function expandPlan(steps: PlanStep[], transplantedOn: DayString, today: 
   for (const s of steps) {
     const months = s.months ?? null;
     let due = nextInSeason(addDays(transplantedOn, s.day), months);
-    const base = { type: s.type, title: s.title, yearly: false, months };
+    const base = { type: s.type, title: cat(s.title), yearly: false, months };
     if (!s.every) {
       if (due >= today) out.push({ ...base, dueOn: due, repeatDays: null, endsOn: null });
       continue;
@@ -382,7 +383,7 @@ export function expandPlan(steps: PlanStep[], transplantedOn: DayString, today: 
 export function seasonalTasks(plan: CropPlan | undefined, today: DayString): PlannedTask[] {
   return (plan?.seasonal ?? []).map((s) => ({
     type: s.type,
-    title: s.title,
+    title: cat(s.title),
     dueOn: nextInSeason(today, s.months),
     repeatDays: s.every ?? null,
     endsOn: null,
@@ -411,6 +412,9 @@ export function transplantReminder(
   if (!weeks) return null;
   return {
     dueOn: addDays(sownOn, weeks[0] * 7),
-    notes: `Di solito ${weeks[0]}-${weeks[1]} settimane dalla semina.`,
+    notes: tr(
+      `Di solito ${weeks[0]}-${weeks[1]} settimane dalla semina.`,
+      `Usually ${weeks[0]}-${weeks[1]} weeks after sowing.`,
+    ),
   };
 }

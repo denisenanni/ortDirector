@@ -1,12 +1,13 @@
 // Alert.alert does nothing on web, so the web preview uses the browser's own
 // dialogs instead.
 import { Alert, Platform } from 'react-native';
+import { tr } from './i18n';
 
 export function confirm(title: string, message: string, okLabel: string, destructive = false): Promise<boolean> {
   if (Platform.OS === 'web') return Promise.resolve(window.confirm(`${title}\n\n${message}`));
   return new Promise((resolve) =>
     Alert.alert(title, message, [
-      { text: 'Annulla', style: 'cancel', onPress: () => resolve(false) },
+      { text: tr('Annulla', 'Cancel'), style: 'cancel', onPress: () => resolve(false) },
       { text: okLabel, style: destructive ? 'destructive' : 'default', onPress: () => resolve(true) },
     ]),
   );

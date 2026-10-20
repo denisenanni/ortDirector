@@ -1,3 +1,4 @@
+import { cat, days, language, tr } from './i18n.ts';
 import type { Sun, TaskType } from './types';
 
 export interface PlantPreset {
@@ -52,10 +53,11 @@ export const PLANT_PRESETS: PlantPreset[] = [
   { name: 'Limone (vaso)', sun: 'full', waterEveryDays: 3, tip: 'Lascia asciugare i primi cm di terra tra un’irrigazione e l’altra.' },
 ];
 
+// Getters, so the labels follow the language chosen at start-up.
 export const SUN_LABEL: Record<Sun, string> = {
-  full: 'Pieno sole',
-  partial: 'Mezz’ombra',
-  shade: 'Ombra',
+  get full() { return tr('Pieno sole', 'Full sun'); },
+  get partial() { return tr('Mezz’ombra', 'Part shade'); },
+  get shade() { return tr('Ombra', 'Shade'); },
 };
 
 export const SUN_ICON: Record<Sun, string> = {
@@ -65,14 +67,14 @@ export const SUN_ICON: Record<Sun, string> = {
 };
 
 export const TASK_LABEL: Record<TaskType, string> = {
-  water: 'Annaffiare',
-  check: 'Controllo',
-  prune: 'Potatura',
-  fertilize: 'Concimazione',
-  treat: 'Trattamento',
-  harvest: 'Raccolta',
-  transplant: 'Trapianto',
-  other: 'Altro',
+  get water() { return tr('Annaffiare', 'Water'); },
+  get check() { return tr('Controllo', 'Check'); },
+  get prune() { return tr('Potatura', 'Prune'); },
+  get fertilize() { return tr('Concimazione', 'Feed'); },
+  get treat() { return tr('Trattamento', 'Treat'); },
+  get harvest() { return tr('Raccolta', 'Harvest'); },
+  get transplant() { return tr('Trapianto', 'Transplant'); },
+  get other() { return tr('Altro', 'Other'); },
 };
 
 export const TASK_ICON: Record<TaskType, string> = {
@@ -86,12 +88,19 @@ export const TASK_ICON: Record<TaskType, string> = {
   other: '📝',
 };
 
-export const MONTH_SHORT = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+const MONTHS_IT = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** Short month names, January first, in the app's language. */
+export function monthShort(): string[] {
+  return language() === 'en' ? MONTHS_EN : MONTHS_IT;
+}
 
 /** "apr–set", "feb", "mar, nov–gen": months as runs of consecutive months. */
 export function monthsLabel(months: number[]): string {
   const set = new Set(months);
-  if (set.size === 12) return 'tutto l’anno';
+  if (set.size === 12) return tr('tutto l’anno', 'all year');
+  const names = monthShort();
   // Start right after a missing month so a run across New Year stays whole.
   let start = 1;
   while (set.has(start) && start <= 12) start++;
@@ -104,7 +113,7 @@ export function monthsLabel(months: number[]): string {
     else runs.push([m, m]);
   }
   return runs
-    .map(([a, b]) => (a === b ? MONTH_SHORT[a - 1] : `${MONTH_SHORT[a - 1]}–${MONTH_SHORT[b - 1]}`))
+    .map(([a, b]) => (a === b ? names[a - 1] : `${names[a - 1]}–${names[b - 1]}`))
     .join(', ');
 }
 
@@ -116,12 +125,20 @@ export function repeatLabel(t: {
   coldRepeatDays?: number | null;
 }): string {
   const season = t.months?.length ? monthsLabel(t.months) : '';
-  if (t.yearly) return season ? `ogni anno, ${season}` : 'ogni anno';
+  const yearly = tr('ogni anno', 'every year');
+  if (t.yearly) return season ? `${yearly}, ${season}` : yearly;
   if (!t.repeatDays) return '';
-  const days = (n: number) => (n === 1 ? 'giorno' : `${n} giorni`);
-  let every = `ogni ${days(t.repeatDays)}`;
-  if (t.coldRepeatDays && t.coldRepeatDays !== t.repeatDays) every += ` (ott–apr ogni ${days(t.coldRepeatDays)})`;
+  let every = everyDays(t.repeatDays);
+  if (t.coldRepeatDays && t.coldRepeatDays !== t.repeatDays) {
+    every += ` (${tr('ott–apr', 'Oct–Apr')} ${everyDays(t.coldRepeatDays)})`;
+  }
   return season ? `${every}, ${season}` : every;
+}
+
+/** "ogni giorno", "ogni 3 giorni", "every day", "every 3 days". */
+export function everyDays(n: number): string {
+  if (n === 1) return tr('ogni giorno', 'every day');
+  return tr(`ogni ${days(n)}`, `every ${days(n)}`);
 }
 
 /** Catalog plants that live for years; every other catalog plant is an annual crop. */
@@ -139,5 +156,5 @@ export const TASK_TYPES = (Object.keys(TASK_LABEL) as TaskType[]).filter((t) => 
 /** The catalog entry for a plant: the one it was created from, else a name match. */
 export function presetFor(plant: { preset: string | null; name: string }): PlantPreset | undefined {
   const key = (plant.preset ?? plant.name).toLowerCase();
-  return PLANT_PRESETS.find((p) => p.name.toLowerCase() === key);
+  return PLANT_PRESETS.find((p) => p.name.toLowerCase() === key || cat(p.name).toLowerCase() === key);
 }

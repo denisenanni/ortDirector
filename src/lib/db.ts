@@ -1,6 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { BACKUP_TABLES, insertFor, makeBackup, type Backup, type Row } from './backup';
 import { planFor, regularWateringFrom, seasonalTasks, transplantReminder, type PlannedTask } from './plans';
+import { tr } from './i18n';
 import { isAnnual, presetFor } from './presets';
 import { afterRain, completeTask, today } from './schedule';
 import type { DayString, DoneEntry, LogEntry, Plant, Stage, Sun, Task, TaskType, TaskWithPlant, Zone } from './types';
@@ -266,7 +267,7 @@ async function syncTransplantReminder(db: SQLiteDatabase, plantId: number, p: Pl
   } else if (reminder) {
     await db.runAsync(
       `INSERT INTO tasks (plant_id, type, title, due_on, notes) VALUES (?, 'transplant', ?, ?, ?)`,
-      plantId, 'Pronta da trapiantare', reminder.dueOn, reminder.notes,
+      plantId, tr('Pronta da trapiantare', 'Ready to transplant'), reminder.dueOn, reminder.notes,
     );
   } else if (open && p.stage === 'seedbed') {
     await db.runAsync('DELETE FROM tasks WHERE id = ?', open.id);
@@ -306,7 +307,7 @@ export async function updatePlant(db: SQLiteDatabase, id: number, p: PlantInput)
 async function insertWaterTask(db: SQLiteDatabase, plantId: number, p: PlantInput) {
   await db.runAsync(
     `INSERT INTO tasks (plant_id, type, title, due_on, repeat_days, cold_repeat_days) VALUES (?, 'water', ?, ?, ?, ?)`,
-    plantId, 'Annaffiare', today(), p.waterEveryDays, p.waterColdDays,
+    plantId, tr('Annaffiare', 'Water'), today(), p.waterEveryDays, p.waterColdDays,
   );
 }
 
@@ -338,7 +339,9 @@ export async function transplant(
     );
     await db.runAsync(
       `INSERT INTO task_log (plant_id, type, title, done_on) VALUES (?, 'transplant', ?, ?)`,
-      plantId, potted ? 'Messa nel vaso definitivo' : 'Messa a dimora', day,
+      plantId,
+      potted ? tr('Messa nel vaso definitivo', 'Potted up') : tr('Messa a dimora', 'Planted out'),
+      day,
     );
     if (waterFrom) {
       await db.runAsync(
@@ -564,7 +567,7 @@ export async function countZonePlants(db: SQLiteDatabase, id: number): Promise<{
 /** Deletes an empty zone. Throws if plants are still in it. */
 export async function deleteZone(db: SQLiteDatabase, id: number) {
   const { total } = await countZonePlants(db, id);
-  if (total > 0) throw new Error('La zona ha ancora delle piante.');
+  if (total > 0) throw new Error(tr('La zona ha ancora delle piante.', 'The zone still has plants.'));
   await db.runAsync('DELETE FROM zones WHERE id = ?', id);
 }
 

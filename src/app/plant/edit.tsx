@@ -6,11 +6,12 @@ import { Body, Button, Chip, ChipRow, Field, Input, PastDayPicker, Screen, Stepp
 import { coldWateringDefault, createPlant, deletePlant, getPlant, listZones, updatePlant, type PlantInput } from '@/lib/db';
 import { syncReminders } from '@/lib/notifications';
 import { planFor } from '@/lib/plans';
-import { PLANT_PRESETS, SUN_LABEL, isAnnual, presetFor } from '@/lib/presets';
+import { PLANT_PRESETS, SUN_LABEL, everyDays, isAnnual, presetFor } from '@/lib/presets';
 import { deletePhoto } from '@/lib/photos';
 import { sunMismatch, today as getToday } from '@/lib/schedule';
 import type { Sun, Zone } from '@/lib/types';
 import { SUN_SYMBOL } from '@/components/Icon';
+import { capitalize, cat, tr } from '@/lib/i18n';
 
 const SUNS: Sun[] = ['full', 'partial', 'shade'];
 
@@ -18,10 +19,10 @@ const SUNS: Sun[] = ['full', 'partial', 'shade'];
 type Start = 'sown' | 'seedling' | 'ground' | 'potted';
 
 const START_LABEL: Record<Start, string> = {
-  sown: 'Seminata',
-  seedling: 'Piantina da trapiantare',
-  ground: 'A dimora in terra',
-  potted: 'In vaso',
+  get sown() { return tr('Seminata', 'Sown'); },
+  get seedling() { return tr('Piantina da trapiantare', 'Seedling to transplant'); },
+  get ground() { return tr('A dimora in terra', 'In the ground'); },
+  get potted() { return tr('In vaso', 'In a pot'); },
 };
 
 const EMPTY: PlantInput = {
@@ -89,14 +90,14 @@ export default function EditPlantScreen() {
     const preset = PLANT_PRESETS.find((p) => p.name === name)!;
     setForm((f) => ({
       ...f,
-      name: preset.name,
+      name: cat(preset.name),
       preset: preset.name,
       annual: isAnnual(preset.name),
       sun: preset.sun,
       waterEveryDays: preset.waterEveryDays,
       waterColdDays: coldWateringDefault(preset.waterEveryDays),
     }));
-    setTip(preset.tip);
+    setTip(cat(preset.tip));
   };
 
   const plan = planFor(presetFor(form)?.name);
@@ -136,19 +137,23 @@ export default function EditPlantScreen() {
 
   const remove = () => {
     if (editingId === null) return;
-    Alert.alert('Eliminare la pianta?', 'Verranno eliminate anche le sue attività e lo storico.', [
-      { text: 'Annulla', style: 'cancel' },
-      {
-        text: 'Elimina',
-        style: 'destructive',
-        onPress: async () => {
-          await deletePlant(db, editingId);
-          deletePhoto(form.photo);
-          syncReminders(db);
-          router.dismissTo('/plants');
+    Alert.alert(
+      tr('Eliminare la pianta?', 'Delete the plant?'),
+      tr('Verranno eliminate anche le sue attività e lo storico.', 'Its tasks and history will be deleted too.'),
+      [
+        { text: tr('Annulla', 'Cancel'), style: 'cancel' },
+        {
+          text: tr('Elimina', 'Delete'),
+          style: 'destructive',
+          onPress: async () => {
+            await deletePlant(db, editingId);
+            deletePhoto(form.photo);
+            syncReminders(db);
+            router.dismissTo('/plants');
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   return (
@@ -156,7 +161,7 @@ export default function EditPlantScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
           {editingId === null && (
-            <Field label="Parti da una pianta comune">
+            <Field label={tr('Parti da una pianta comune', 'Start from a common plant')}>
               {/* Two scrolling rows instead of a wall of chips. */}
               <ScrollView
                 horizontal
@@ -170,7 +175,7 @@ export default function EditPlantScreen() {
                       {PLANT_PRESETS.filter((_, i) => i % 2 === r).map((p) => (
                         <Chip
                           key={p.name}
-                          label={p.name}
+                          label={cat(p.name)}
                           selected={form.preset === p.name}
                           onPress={() => applyPreset(p.name)}
                         />
@@ -184,7 +189,7 @@ export default function EditPlantScreen() {
           )}
 
           {editingId === null && (
-            <Field label="Com’è adesso">
+            <Field label={tr('Com’è adesso', 'Where it is now')}>
               <ChipRow>
                 {(Object.keys(START_LABEL) as Start[]).map((k) => (
                   <Chip key={k} label={START_LABEL[k]} selected={start === k} onPress={() => setStart(k)} />
@@ -192,46 +197,52 @@ export default function EditPlantScreen() {
               </ChipRow>
               {start === 'sown' && plan?.sowToTransplantWeeks ? (
                 <Body muted style={{ marginTop: 8 }}>
-                  Ti ricordo di trapiantarla dopo {plan.sowToTransplantWeeks[0]}-{plan.sowToTransplantWeeks[1]} settimane.
+                  {tr(
+                    `Ti ricordo di trapiantarla dopo ${plan.sowToTransplantWeeks[0]}-${plan.sowToTransplantWeeks[1]} settimane.`,
+                    `I’ll remind you to transplant it after ${plan.sowToTransplantWeeks[0]}-${plan.sowToTransplantWeeks[1]} weeks.`,
+                  )}
                 </Body>
               ) : null}
               {(start === 'ground' || start === 'potted') && plan ? (
                 <Body muted style={{ marginTop: 8 }}>
-                  Dopo il salvataggio scegli da quando è lì e le attività del piano.
+                  {tr(
+                    'Dopo il salvataggio scegli da quando è lì e le attività del piano.',
+                    'After saving, pick since when it’s there and the plan’s tasks.',
+                  )}
                 </Body>
               ) : null}
             </Field>
           )}
 
           {editingId !== null && form.stage === 'ground' ? (
-            <Field label="Dove">
+            <Field label={tr('Dove', 'Where')}>
               <ChipRow>
-                <Chip icon="ground" label="In terra" selected={!form.potted} onPress={() => set('potted', false)} />
-                <Chip label="In vaso" selected={form.potted} onPress={() => set('potted', true)} />
+                <Chip icon="ground" label={tr('In terra', 'In the ground')} selected={!form.potted} onPress={() => set('potted', false)} />
+                <Chip label={tr('In vaso', 'In a pot')} selected={form.potted} onPress={() => set('potted', true)} />
               </ChipRow>
             </Field>
           ) : null}
 
           {(editingId === null ? start === 'sown' : form.stage === 'seedbed' && form.sownOn) ? (
-            <Field label="Seminata">
+            <Field label={tr('Seminata', 'Sown')}>
               <PastDayPicker value={form.sownOn ?? today} onChange={(d) => set('sownOn', d)} today={today} />
             </Field>
           ) : null}
           {(editingId === null ? (start === 'ground' || start === 'potted') && !plan : form.stage === 'ground' && form.plantedOn) ? (
-            <Field label={start === 'potted' || form.potted ? 'In vaso dal' : 'A dimora dal'}>
+            <Field label={start === 'potted' || form.potted ? tr('In vaso dal', 'In its pot since') : tr('A dimora dal', 'In the ground since')}>
               <PastDayPicker value={form.plantedOn ?? today} onChange={(d) => set('plantedOn', d)} today={today} />
             </Field>
           ) : null}
 
-          <Field label="Nome">
-            <Input value={form.name} onChangeText={(v) => set('name', v)} placeholder="Es. Pomodoro" />
+          <Field label={tr('Nome', 'Name')}>
+            <Input value={form.name} onChangeText={(v) => set('name', v)} placeholder={tr('Es. Pomodoro', 'E.g. Tomato')} />
           </Field>
-          <Field label="Varietà (facoltativo)">
-            <Input value={form.variety ?? ''} onChangeText={(v) => set('variety', v)} placeholder="Es. Cuore di bue" />
+          <Field label={tr('Varietà (facoltativo)', 'Variety (optional)')}>
+            <Input value={form.variety ?? ''} onChangeText={(v) => set('variety', v)} placeholder={tr('Es. Cuore di bue', 'E.g. Beefsteak')} />
           </Field>
-          <Field label="Zona">
+          <Field label={tr('Zona', 'Zone')}>
             <ChipRow>
-              <Chip label="Nessuna" selected={form.zoneId === null} onPress={() => set('zoneId', null)} />
+              <Chip label={tr('Nessuna', 'None')} selected={form.zoneId === null} onPress={() => set('zoneId', null)} />
               {zones.map((z) => (
                 <Chip
                   key={z.id}
@@ -241,52 +252,55 @@ export default function EditPlantScreen() {
                   onPress={() => set('zoneId', z.id)}
                 />
               ))}
-              <Chip icon="add" label="Nuova zona" onPress={() => router.push('/zone/edit')} />
+              <Chip icon="add" label={tr('Nuova zona', 'New zone')} onPress={() => router.push('/zone/edit')} />
             </ChipRow>
             {mismatch ? <Body style={{ marginTop: 8, color: t.warn }}>{mismatch}</Body> : null}
           </Field>
-          <Field label="Sole che le serve">
+          <Field label={tr('Sole che le serve', 'Sun it needs')}>
             <ChipRow>
               {SUNS.map((s) => (
                 <Chip key={s} icon={SUN_SYMBOL[s]} label={SUN_LABEL[s]} selected={form.sun === s} onPress={() => set('sun', s)} />
               ))}
             </ChipRow>
           </Field>
-          <Field label="Irrigazione da maggio a settembre">
+          <Field label={tr('Irrigazione da maggio a settembre', 'Watering from May to September')}>
             <Stepper
               value={form.waterEveryDays}
               onChange={(v) => set('waterEveryDays', v)}
               max={60}
-              allowOff="Nessun promemoria"
-              format={(v) => (v === 1 ? 'Ogni giorno' : `Ogni ${v} giorni`)}
+              allowOff={tr('Nessun promemoria', 'No reminder')}
+              format={(v) => capitalize(everyDays(v))}
             />
           </Field>
           {form.waterEveryDays ? (
-            <Field label="Irrigazione nel resto dell’anno">
+            <Field label={tr('Irrigazione nel resto dell’anno', 'Watering the rest of the year')}>
               <Stepper
                 value={form.waterColdDays}
                 onChange={(v) => set('waterColdDays', v)}
                 max={90}
-                allowOff="Come d’estate"
-                format={(v) => (v === 1 ? 'Ogni giorno' : `Ogni ${v} giorni`)}
+                allowOff={tr('Come d’estate', 'Same as summer')}
+                format={(v) => capitalize(everyDays(v))}
               />
             </Field>
           ) : null}
-          <Field label="Ciclo">
+          <Field label={tr('Ciclo', 'Life cycle')}>
             <ChipRow>
-              <Chip label="Annuale" selected={form.annual} onPress={() => set('annual', true)} />
-              <Chip label="Perenne" selected={!form.annual} onPress={() => set('annual', false)} />
+              <Chip label={tr('Annuale', 'Annual')} selected={form.annual} onPress={() => set('annual', true)} />
+              <Chip label={tr('Perenne', 'Perennial')} selected={!form.annual} onPress={() => set('annual', false)} />
             </ChipRow>
             <Body muted style={{ marginTop: 8 }}>
-              Le annuali a fine stagione si archiviano: restano con il loro storico ma spariscono da Oggi.
+              {tr(
+                'Le annuali a fine stagione si archiviano: restano con il loro storico ma spariscono da Oggi.',
+                'Annuals get archived at the end of the season: they keep their history but leave Today.',
+              )}
             </Body>
           </Field>
-          <Field label="Note">
-            <Input value={form.notes ?? ''} onChangeText={(v) => set('notes', v)} multiline placeholder="Concime, problemi, osservazioni…" />
+          <Field label={tr('Note', 'Notes')}>
+            <Input value={form.notes ?? ''} onChangeText={(v) => set('notes', v)} multiline placeholder={tr('Concime, problemi, osservazioni…', 'Feeding, problems, observations…')} />
           </Field>
 
-          <Button label="Salva" onPress={save} disabled={!form.name.trim()} />
-          {editingId !== null && <Button kind="danger" label="Elimina pianta" onPress={remove} />}
+          <Button label={tr('Salva', 'Save')} onPress={save} disabled={!form.name.trim()} />
+          {editingId !== null && <Button kind="danger" label={tr('Elimina pianta', 'Delete plant')} onPress={remove} />}
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
