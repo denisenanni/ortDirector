@@ -16,9 +16,17 @@ export function photoUri(photo: string | null): string | null {
   return f.exists ? f.uri : null;
 }
 
+/** Camera access was refused; iOS asks only once, after that only Settings can change it. */
+export class CameraPermissionError extends Error {
+  constructor() {
+    super('Camera access denied');
+  }
+}
+
 /**
  * Lets the user take or pick a photo, cropped 4:3, and stores it. Returns the
- * value for the plant's photo column, or null if they cancel or say no.
+ * value for the plant's photo column, or null if they cancel. Throws
+ * CameraPermissionError when camera access is refused.
  */
 export async function takePhoto(plantId: number, source: 'camera' | 'library'): Promise<string | null> {
   const options: ImagePicker.ImagePickerOptions = {
@@ -30,7 +38,7 @@ export async function takePhoto(plantId: number, source: 'camera' | 'library'): 
   };
   if (source === 'camera') {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) return null;
+    if (!perm.granted) throw new CameraPermissionError();
   }
   const res =
     source === 'camera' ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
