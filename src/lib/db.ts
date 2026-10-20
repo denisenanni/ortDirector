@@ -470,12 +470,16 @@ export async function listDoneOn(db: SQLiteDatabase, day: DayString = today()): 
 
 /**
  * Un-ticks a task: it goes back to the day it was due and leaves the
- * history. Only for entries markDone wrote, whose task still exists.
+ * history. Ticks from before v5 didn't save that day, so those go back to
+ * the day they were ticked. Transplants (no task) can't be undone here.
  */
 export async function undoDone(db: SQLiteDatabase, entry: DoneEntry) {
-  if (entry.taskId === null || entry.prevDueOn === null) return;
+  if (entry.taskId === null) return;
   await db.withTransactionAsync(async () => {
-    await db.runAsync('UPDATE tasks SET due_on = ?, done_on = NULL WHERE id = ?', entry.prevDueOn, entry.taskId);
+    await db.runAsync(
+      'UPDATE tasks SET due_on = ?, done_on = NULL WHERE id = ?',
+      entry.prevDueOn ?? entry.doneOn, entry.taskId,
+    );
     await db.runAsync('DELETE FROM task_log WHERE id = ?', entry.id);
   });
 }

@@ -93,7 +93,7 @@ export interface LogEntry {
 
 /** A history entry as Oggi shows it: ticked today, possibly to undo. */
 export interface DoneEntry extends LogEntry {
-  /** The day the task was due before it was ticked; null when it can't be undone. */
+  /** The day the task was due before it was ticked; null for ticks from before v5. */
   prevDueOn: DayString | null;
   plantName: string | null;
   zoneName: string | null;

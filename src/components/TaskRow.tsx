@@ -51,7 +51,7 @@ export function TaskRow({
 /** Something ticked today: stays in Oggi, checked; tapping the tick undoes it. */
 export function DoneRow({ entry, onUndo }: { entry: DoneEntry; onUndo: (e: DoneEntry) => void }) {
   const t = useTheme();
-  const undoable = entry.taskId !== null && entry.prevDueOn !== null;
+  const undoable = entry.taskId !== null;
   return (
     <View style={[styles.row, { backgroundColor: t.card, borderColor: t.border, opacity: 0.6 }]}>
       {entry.zoneName ? <ZoneTag name={entry.zoneName} /> : null}
