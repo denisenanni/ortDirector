@@ -3,9 +3,9 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { Body, Button, Chip, ChipRow, Field, Input, PastDayPicker, Screen, Stepper, useTheme } from '@/components/ui';
-import { coldWateringDefault, createPlant, deletePlant, getPlant, listZones, updatePlant, type PlantInput } from '@/lib/db';
+import { coldWateringDefault, createPlant, deletePlant, getPlant, listZones, transplant, updatePlant, type PlantInput } from '@/lib/db';
 import { syncReminders } from '@/lib/notifications';
-import { planFor } from '@/lib/plans';
+import { expandPlan, planFor } from '@/lib/plans';
 import { PLANT_PRESETS, SUN_LABEL, everyDays, isAnnual, presetFor } from '@/lib/presets';
 import { deletePhoto } from '@/lib/photos';
 import { sunMismatch, today as getToday } from '@/lib/schedule';
@@ -113,21 +113,22 @@ export default function EditPlantScreen() {
       notes: form.notes?.trim() || null,
     };
     if (editingId === null) {
-      // A plant with a plan goes into the ground through the transplant
-      // screen, which picks the day and the plan's tasks.
-      const final = start === 'ground' || start === 'potted';
-      const viaTransplant = final && !!plan;
       clean.potted = start === 'potted';
       if (start === 'sown') {
         Object.assign(clean, { stage: 'seedbed', sownOn: clean.sownOn ?? today, plantedOn: null });
-      } else if (start === 'seedling' || viaTransplant) {
+      } else if (start === 'seedling') {
         Object.assign(clean, { stage: 'seedbed', sownOn: null, plantedOn: null });
       } else {
         Object.assign(clean, { stage: 'ground', sownOn: null, plantedOn: clean.plantedOn ?? today });
       }
+      // Already in the ground or its pot: the plan counts from that day, and
+      // steps whose day has passed are left out, so an old plant doesn't
+      // flood Oggi.
+      const planned = clean.stage === 'ground' && plan ? expandPlan(plan.steps, clean.plantedOn!, today) : null;
+      if (planned) Object.assign(clean, { stage: 'seedbed', plantedOn: null });
       const newId = await createPlant(db, clean);
+      if (planned) await transplant(db, newId, form.plantedOn ?? today, planned, clean.potted);
       router.replace(`/plant/${newId}`);
-      if (viaTransplant) router.push({ pathname: '/plant/transplant', params: { id: String(newId) } });
     } else {
       await updatePlant(db, editingId, clean);
       router.back();
@@ -206,8 +207,8 @@ export default function EditPlantScreen() {
               {(start === 'ground' || start === 'potted') && plan ? (
                 <Body muted style={{ marginTop: 8 }}>
                   {tr(
-                    'Dopo il salvataggio scegli da quando è lì e le attività del piano.',
-                    'After saving, pick since when it’s there and the plan’s tasks.',
+                    'Le attività del piano partono dal giorno qui sotto; quelle già passate non vengono aggiunte.',
+                    'The plan’s tasks count from the day below; the ones already past are left out.',
                   )}
                 </Body>
               ) : null}
@@ -228,7 +229,7 @@ export default function EditPlantScreen() {
               <PastDayPicker value={form.sownOn ?? today} onChange={(d) => set('sownOn', d)} today={today} />
             </Field>
           ) : null}
-          {(editingId === null ? (start === 'ground' || start === 'potted') && !plan : form.stage === 'ground' && form.plantedOn) ? (
+          {(editingId === null ? start === 'ground' || start === 'potted' : form.stage === 'ground' && form.plantedOn) ? (
             <Field label={start === 'potted' || form.potted ? tr('In vaso dal', 'In its pot since') : tr('A dimora dal', 'In the ground since')}>
               <PastDayPicker value={form.plantedOn ?? today} onChange={(d) => set('plantedOn', d)} today={today} />
             </Field>
