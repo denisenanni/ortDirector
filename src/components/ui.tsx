@@ -1,5 +1,7 @@
 import { Children, Fragment, isValidElement, type ReactNode } from 'react';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import {
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -12,7 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { locale, tr } from '@/lib/i18n';
-import { addDays, daysBetween, fromDay } from '@/lib/schedule';
+import { addDays, daysBetween, fromDay, toDay } from '@/lib/schedule';
 import { Icon, type IconName } from './Icon';
 
 // Garden-notebook palette: warm paper, deep leaf green, terracotta for what's
@@ -385,7 +387,13 @@ export function PastDayPicker({
   onChange: (day: string) => void;
   today: string;
 }) {
+  const t = useTheme();
   const ago = Math.max(0, daysBetween(value, today));
+  const longDate = fromDay(value).toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric' });
+  const pick = (date?: Date) => {
+    if (date) onChange(toDay(date) > today ? today : toDay(date));
+  };
+  const range = { value: fromDay(value), maximumDate: fromDay(today), minimumDate: fromDay(addDays(today, -365 * 5)) };
   return (
     <>
       <ChipRow>
@@ -399,20 +407,47 @@ export function PastDayPicker({
         ))}
       </ChipRow>
       <View style={{ height: 8 }} />
-      {/* The stepper counts days from a year ago, so − goes back in time and + towards today. */}
-      <Stepper
-        value={365 - ago}
-        onChange={(v) => onChange(addDays(today, -(365 - (v ?? 365))))}
-        min={0}
-        max={365}
-        format={(v) => {
-          const n = 365 - v;
-          return (
-            daysAgo(n) +
-            ` · ${fromDay(addDays(today, -n)).toLocaleDateString(locale(), { day: 'numeric', month: 'short' })}`
-          );
-        }}
-      />
+      {Platform.OS === 'ios' ? (
+        // Compact: shows the date; a tap opens the iOS calendar.
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <Text style={{ color: t.muted, fontSize: 15 }}>{tr('Altra data:', 'Other date:')}</Text>
+          <DateTimePicker
+            mode="date"
+            display="compact"
+            locale={locale()}
+            {...range}
+            onValueChange={(_, date) => pick(date)}
+          />
+        </View>
+      ) : Platform.OS === 'android' ? (
+        <Chip
+          icon="today"
+          label={longDate}
+          selected={false}
+          onPress={() => DateTimePickerAndroid.open({ mode: 'date', ...range, onValueChange: (_, date) => pick(date) })}
+        />
+      ) : (
+        // The web preview has no native picker: the stepper counts days from
+        // a year ago, so − goes back in time and + towards today.
+        <Stepper
+          value={365 - Math.min(ago, 365)}
+          onChange={(v) => onChange(addDays(today, -(365 - (v ?? 365))))}
+          min={0}
+          max={365}
+          format={(v) => {
+            const n = 365 - v;
+            return (
+              daysAgo(n) +
+              ` · ${fromDay(addDays(today, -n)).toLocaleDateString(locale(), { day: 'numeric', month: 'short' })}`
+            );
+          }}
+        />
+      )}
+      {ago > 0 ? (
+        <Text style={{ color: t.muted, fontSize: 14, marginTop: 6 }}>
+          {longDate} · {daysAgo(ago).toLowerCase()}
+        </Text>
+      ) : null}
     </>
   );
 }

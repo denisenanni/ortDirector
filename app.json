@@ -39,7 +39,8 @@
           "cameraPermission": "ortDirector usa la fotocamera per fotografare le piante.",
           "microphonePermission": false
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "scheme": "ortdirector",
     "experiments": {
