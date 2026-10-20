@@ -2,11 +2,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PLANS, expandPlan, regularWateringFrom, seasonalTasks, transplantReminder } from './plans.ts';
-import { PLANT_PRESETS, isAnnual } from './presets.ts';
+import { PLANT_KINDS, kindWatering } from './kinds.ts';
+import { PLANT_PRESETS, isAnnual, presetFor } from './presets.ts';
 
 test('every catalog plant has a plan, and every plan a catalog plant', () => {
   assert.deepEqual(
-    PLANT_PRESETS.map((p) => p.name).sort(),
+    [...PLANT_PRESETS, ...PLANT_KINDS].map((p) => p.name).sort(),
     Object.keys(PLANS).sort(),
   );
 });
@@ -103,4 +104,44 @@ test('vegetables are annual, shrubs and herbs that last are not', () => {
   assert.equal(isAnnual('Menta'), false);
   assert.equal(isAnnual('Rosa'), false);
   assert.equal(isAnnual(undefined), false);
+});
+
+test('a kind gives care by pot, frost and age', () => {
+  const plan = PLANS['Albero da frutto tropicale'];
+  const titles = (care: Parameters<typeof seasonalTasks>[2]) =>
+    seasonalTasks(plan, '2026-10-20', care).map((t) => t.title);
+  const potted = titles({ potted: true, tender: true, young: true });
+  assert.ok(potted.includes('Mettere al riparo dal gelo'));
+  assert.ok(potted.includes('Controllare se serve un vaso più grande'));
+  assert.ok(potted.includes('Potatura di formazione'));
+  assert.ok(!potted.includes('Pacciamare e coprire con tessuto non tessuto'));
+  const ground = titles({ potted: false, tender: true, young: false });
+  assert.ok(ground.includes('Pacciamare e coprire con tessuto non tessuto'));
+  assert.ok(ground.includes('Potatura leggera'));
+  assert.ok(!ground.includes('Mettere al riparo dal gelo'));
+  assert.ok(!ground.includes('Controllare se serve un vaso più grande'));
+  const hardy = titles({ potted: false, tender: false });
+  assert.ok(!hardy.some((t) => /gelo|protezione|tessuto/.test(t)));
+});
+
+test('frost protection falls in November', () => {
+  const t = seasonalTasks(PLANS.Avocado, '2026-10-20', { potted: true }).find((x) => x.title === 'Mettere al riparo dal gelo');
+  assert.equal(t?.dueOn, '2026-11-01');
+  assert.equal(t?.yearly, true);
+});
+
+test('watering follows pot and size', () => {
+  const tree = PLANT_KINDS.find((k) => k.name === 'Albero da frutto')!;
+  assert.equal(kindWatering(tree, false, 'medium'), 7);
+  assert.equal(kindWatering(tree, false, 'large'), 11);
+  assert.equal(kindWatering(tree, true, 'small'), 2);
+  assert.ok(kindWatering(PLANT_KINDS[0], true, 'small') >= 1);
+});
+
+test('kinds are perennial unless annual, and found only as a preset', () => {
+  assert.equal(isAnnual('Albero da frutto'), false);
+  assert.equal(isAnnual('Annuale da fiore'), true);
+  assert.equal(isAnnual('Avocado'), false);
+  assert.equal(presetFor({ preset: 'Siepe', name: 'Lauroceraso' })?.name, 'Siepe');
+  assert.equal(presetFor({ preset: null, name: 'Siepe' }), undefined);
 });

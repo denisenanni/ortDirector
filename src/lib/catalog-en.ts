@@ -41,6 +41,21 @@ export const CATALOG_EN: Record<string, string> = {
   Ortensia: 'Hydrangea',
   Rosa: 'Rose',
   'Limone (vaso)': 'Lemon (pot)',
+  Litchi: 'Lychee',
+  Avocado: 'Avocado',
+  'Leonotis (klip dagga)': 'Lion’s tail (klip dagga)',
+
+  // Kinds, for plants outside the catalog
+  'Albero da frutto': 'Fruit tree',
+  'Albero da frutto tropicale': 'Tropical fruit tree',
+  Agrume: 'Citrus',
+  'Albero ornamentale': 'Ornamental tree',
+  Arbusto: 'Shrub',
+  Siepe: 'Hedge',
+  Rampicante: 'Climber',
+  'Perenne da fiore': 'Flowering perennial',
+  'Annuale da fiore': 'Bedding annual',
+  'Succulenta o cactus': 'Succulent or cactus',
 
   // Tips
   'Acqua alla base, mai sulle foglie. Togli le femminelle ogni settimana.':
@@ -97,9 +112,55 @@ export const CATALOG_EN: Record<string, string> = {
   'Pota a fine inverno. Controlla afidi e oidio.': 'Prune in late winter. Watch for aphids and powdery mildew.',
   'Lascia asciugare i primi cm di terra tra un’irrigazione e l’altra.':
     'Let the top few cm of soil dry out between waterings.',
+  'Subtropicale: sotto i -2 °C soffre, da giovane già a 0 °C. Terreno sempre umido ma drenato, acqua poco calcarea e concime leggero: le radici patiscono il sale.':
+    'Subtropical: suffers below -2 °C, when young already at 0 °C. Keep the soil moist but free-draining, use soft water and light feeding: the roots hate salt.',
+  'Teme i ristagni più della siccità: annaffia a fondo e lascia asciugare i primi cm. Pacciama, le radici sono superficiali. Sotto i -2 °C va protetto.':
+    'Fears waterlogging more than drought: water deeply and let the top few cm dry. Mulch, the roots are shallow. Protect it below -2 °C.',
+  'Resiste alla siccità e fiorisce da fine estate all’autunno. Sotto i -5 °C la parte aerea secca ma ricaccia dalla base: pacciama le radici d’inverno.':
+    'Drought-tolerant, flowers from late summer into autumn. Below -5 °C the top dies but it regrows from the base: mulch the roots in winter.',
+  'Pota d’inverno a gemme ferme. Annaffia a fondo e di rado: le radici devono andare in profondità.':
+    'Prune in winter while dormant. Water deeply and rarely, so the roots go down.',
+  'Teme il gelo: in vaso va al riparo d’inverno, in terra copri la chioma e pacciama le radici. Concima poco e spesso da marzo a settembre.':
+    'Fears frost: in a pot move it under cover for winter, in the ground cover the crown and mulch the roots. Feed little and often from March to September.',
+  'Lascia asciugare i primi cm di terra tra un’annaffiatura e l’altra. Concime per agrumi da marzo a settembre. Sotto i -3 °C va protetto.':
+    'Let the top few cm of soil dry between waterings. Citrus feed from March to September. Protect it below -3 °C.',
+  'I primi due anni annaffia con regolarità; poi in terra basta la pioggia, tranne nelle estati più secche.':
+    'Water regularly for the first two years; after that, in the ground rain is enough except in the driest summers.',
+  'Se fiorisce in primavera, potalo subito dopo la fioritura invece che a fine inverno.':
+    'If it flowers in spring, prune it right after flowering instead of in late winter.',
+  'Tosala due volte l’anno, a inizio estate e a fine estate. Più stretta in alto che in basso, così la luce arriva alla base.':
+    'Trim it twice a year, in early and late summer. Keep it narrower at the top so light reaches the base.',
+  'Lega i tralci nuovi al sostegno mentre sono ancora flessibili.': 'Tie new shoots to the support while they still bend.',
+  'Togli i fiori secchi per farla rifiorire. A fine inverno taglia gli steli secchi.':
+    'Deadhead to make it flower again. Cut back dead stems in late winter.',
+  'Togli i fiori secchi ogni settimana e concima spesso: fiorisce fino ai primi freddi.':
+    'Deadhead every week and feed often: it flowers until the first cold.',
+  'Annaffia solo con il terriccio asciutto, quasi mai d’inverno. Teme più l’umidità del freddo.':
+    'Water only when the soil is dry, hardly ever in winter. Damp harms it more than cold.',
 
   // Plan steps
   'Accorciare i getti': 'Shorten the shoots',
+  'Concimazione (piante fiorite)': 'Feed (flowering plants)',
+  'Concimazione (piante grasse)': 'Feed (cactus)',
+  'Concimazione leggera (acidofile)': 'Light feed (ericaceous)',
+  'Controllare se serve un vaso più grande': 'Check if it needs a bigger pot',
+  'Controllo afidi e malattie': 'Check for aphids and disease',
+  'Controllo cocciniglie e acari': 'Check for scale and mites',
+  'Legare i tralci nuovi': 'Tie in new shoots',
+  'Pacciamare e coprire con tessuto non tessuto': 'Mulch and cover with fleece',
+  'Pacciamare la base contro il gelo': 'Mulch the base against frost',
+  'Potatura di formazione': 'Formative pruning',
+  'Potatura drastica (a 30 cm da terra)': 'Cut back hard (to 30 cm)',
+  'Potatura invernale': 'Winter pruning',
+  'Potatura leggera': 'Light pruning',
+  'Potatura leggera dopo la raccolta': 'Light pruning after harvest',
+  'Rinnovare la pacciamatura': 'Top up the mulch',
+  'Tagliare gli steli secchi': 'Cut back dead stems',
+  'Togliere i fiori secchi': 'Deadhead',
+  'Togliere la protezione invernale': 'Remove the winter cover',
+  'Togliere rami secchi e incrociati': 'Remove dead and crossing branches',
+  Tosatura: 'Trim',
+  'Trattamento invernale (rame)': 'Winter spray (copper)',
   'Annaffiare (attecchimento)': 'Water (settling in)',
   'Cimare i fiori': 'Pinch off the flowers',
   'Cimare la pianta': 'Pinch out the tip',

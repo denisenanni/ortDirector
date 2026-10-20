@@ -1,6 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { BACKUP_TABLES, insertFor, makeBackup, type Backup, type Row } from './backup';
-import { planFor, regularWateringFrom, seasonalTasks, transplantReminder, type PlannedTask } from './plans';
+import { kindFor } from './kinds';
+import { planFor, regularWateringFrom, seasonalTasks, transplantReminder, type CareContext, type PlannedTask } from './plans';
 import { local, tr } from './i18n';
 import { isAnnual, presetFor } from './presets';
 import { afterRain, completeTask, today } from './schedule';
@@ -236,10 +237,16 @@ export async function getPlant(db: SQLiteDatabase, id: number): Promise<Plant | 
 }
 
 /**
- * Creates the plant, its watering task due today if it has an interval, and
- * for a sown plant in the catalog the "ready to transplant" reminder.
+ * Creates the plant, its watering task due today if it has an interval, its
+ * seasonal care, and for a sown plant in the catalog the "ready to
+ * transplant" reminder. `care` says whether it fears frost and is young,
+ * for plants created from a kind.
  */
-export async function createPlant(db: SQLiteDatabase, p: PlantInput): Promise<number> {
+export async function createPlant(
+  db: SQLiteDatabase,
+  p: PlantInput,
+  care: Omit<CareContext, 'potted'> = { tender: false, young: false },
+): Promise<number> {
   let id = 0;
   await db.withTransactionAsync(async () => {
     const res = await db.runAsync(
@@ -251,7 +258,8 @@ export async function createPlant(db: SQLiteDatabase, p: PlantInput): Promise<nu
     id = res.lastInsertRowId;
     if (p.waterEveryDays) await insertWaterTask(db, id, p);
     await syncTransplantReminder(db, id, p);
-    for (const t of seasonalTasks(planFor(presetFor(p)?.name), today())) await insertTask(db, id, t);
+    const seasonal = seasonalTasks(planFor(presetFor(p)?.name), today(), { ...care, potted: p.potted });
+    for (const t of seasonal) await insertTask(db, id, t);
   });
   return id;
 }
@@ -382,7 +390,9 @@ export async function restorePlant(db: SQLiteDatabase, id: number) {
   await db.withTransactionAsync(async () => {
     await db.runAsync('UPDATE plants SET archived_on = NULL WHERE id = ?', id);
     if (p.waterEveryDays) await insertWaterTask(db, id, p);
-    for (const t of seasonalTasks(planFor(presetFor(p)?.name), today())) await insertTask(db, id, t);
+    // Whether it fears frost isn't saved: the kind's usual answer.
+    const care = { potted: p.potted, tender: kindFor(p.preset)?.tender ?? false };
+    for (const t of seasonalTasks(planFor(presetFor(p)?.name), today(), care)) await insertTask(db, id, t);
   });
 }
 

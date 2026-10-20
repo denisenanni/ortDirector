@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { afterEach, test } from 'node:test';
 import { CATALOG_EN } from './catalog-en.ts';
 import { cat, local, setLanguage, tr } from './i18n.ts';
+import { PLANT_KINDS } from './kinds.ts';
 import { planFor } from './plans.ts';
 import { PLANT_PRESETS, SUN_LABEL, TASK_LABEL, monthsLabel, presetFor, repeatLabel, searchPresets } from './presets.ts';
 import { relativeLabel } from './schedule.ts';
@@ -11,7 +12,7 @@ afterEach(() => setLanguage('it'));
 
 test('every catalog text has an English version', () => {
   const missing: string[] = [];
-  for (const p of PLANT_PRESETS) {
+  for (const p of [...PLANT_PRESETS, ...PLANT_KINDS]) {
     const plan = planFor(p.name);
     const texts = [p.name, p.tip, ...(plan?.steps ?? []).map((s) => s.title), ...(plan?.seasonal ?? []).map((s) => s.title)];
     for (const text of texts) if (!(text in CATALOG_EN)) missing.push(text);
@@ -62,4 +63,8 @@ test('catalog search by name, plural and group', () => {
   assert.deepEqual(names('Peperóncino'), ['Peperoncino']);
   assert.ok(names('tomato').includes('Pomodoro'));
   assert.deepEqual(names(''), []);
+  assert.deepEqual(names('lichi'), ['Litchi']);
+  assert.deepEqual(names('klip dagga'), ['Leonotis (klip dagga)']);
+  assert.ok(names('avocado').includes('Avocado'));
+  assert.ok(names('tropicali').includes('Litchi'));
 });

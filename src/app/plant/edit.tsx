@@ -2,9 +2,10 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
-import { Body, Button, Chip, ChipRow, Field, Input, PastDayPicker, Screen, Stepper, useTheme } from '@/components/ui';
+import { Body, Button, Chip, ChipRow, Field, Input, PastDayPicker, Screen, Stepper, ToggleRow, useTheme } from '@/components/ui';
 import { coldWateringDefault, createPlant, deletePlant, getPlant, listZones, transplant, updatePlant, type PlantInput } from '@/lib/db';
 import { syncReminders } from '@/lib/notifications';
+import { PLANT_KINDS, kindFor, kindWatering, type Size } from '@/lib/kinds';
 import { expandPlan, planFor } from '@/lib/plans';
 import { PLANT_PRESETS, SUN_LABEL, everyDays, isAnnual, presetFor, searchPresets } from '@/lib/presets';
 import { deletePhoto } from '@/lib/photos';
@@ -23,6 +24,12 @@ const START_LABEL: Record<Start, string> = {
   get seedling() { return tr('Piantina da trapiantare', 'Seedling to transplant'); },
   get ground() { return tr('A dimora in terra', 'In the ground'); },
   get potted() { return tr('In vaso', 'In a pot'); },
+};
+
+const SIZE_LABEL: Record<Size, string> = {
+  get small() { return tr('Giovane o piccola', 'Young or small'); },
+  get medium() { return tr('Media', 'Medium'); },
+  get large() { return tr('Grande, adulta', 'Large, mature'); },
 };
 
 const EMPTY: PlantInput = {
@@ -53,6 +60,9 @@ export default function EditPlantScreen() {
   const [query, setQuery] = useState('');
   const [start, setStart] = useState<Start>('ground');
   const [zones, setZones] = useState<Zone[]>([]);
+  // For a plant outside the catalog, created from a kind.
+  const [size, setSize] = useState<Size>('medium');
+  const [tender, setTender] = useState(false);
   const t = useTheme();
   const today = getToday();
 
@@ -101,6 +111,30 @@ export default function EditPlantScreen() {
     setTip(cat(preset.tip));
   };
 
+  const applyKind = (name: string) => {
+    if (form.preset === name) {
+      setForm((f) => ({ ...f, preset: null }));
+      setTip(null);
+      return;
+    }
+    const k = kindFor(name)!;
+    setForm((f) => ({ ...f, preset: k.name, annual: !!k.annual, sun: k.sun }));
+    setTender(k.tender);
+    setTip(cat(k.tip));
+  };
+
+  const kind = editingId === null ? kindFor(form.preset) : undefined;
+  // A kind's watering follows the pot and the size, until the user changes it by hand below.
+  useEffect(() => {
+    if (!kind) return;
+    const summer = kindWatering(kind, start === 'potted', size);
+    setForm((f) => ({
+      ...f,
+      waterEveryDays: summer,
+      waterColdDays: kind.waterColdDays ?? coldWateringDefault(summer),
+    }));
+  }, [kind, start, size]);
+
   const plan = planFor(presetFor(form)?.name);
   const matches = searchPresets(query).slice(0, 12);
   const chosen = form.preset ? PLANT_PRESETS.find((p) => p.name === form.preset) : undefined;
@@ -129,7 +163,7 @@ export default function EditPlantScreen() {
       // flood Oggi.
       const planned = clean.stage === 'ground' && plan ? expandPlan(plan.steps, clean.plantedOn!, today) : null;
       if (planned) Object.assign(clean, { stage: 'seedbed', plantedOn: null });
-      const newId = await createPlant(db, clean);
+      const newId = await createPlant(db, clean, { tender: !!kind && tender, young: !!kind && size === 'small' });
       if (planned) await transplant(db, newId, form.plantedOn ?? today, planned, clean.potted);
       router.replace(`/plant/${newId}`);
     } else {
@@ -190,12 +224,44 @@ export default function EditPlantScreen() {
                 </View>
               ) : query.trim() ? (
                 <Body muted style={{ marginTop: 8 }}>
-                  {tr('Non è nel catalogo: scrivi il nome qui sotto e scegli tu sole e acqua.', 'Not in the catalog: type the name below and set sun and water yourself.')}
+                  {tr('Non è nel catalogo: scegli qui sotto che tipo di pianta è e scrivi il nome.', 'Not in the catalog: pick below what kind of plant it is and type its name.')}
                 </Body>
               ) : null}
-              {tip ? <Body muted style={{ marginTop: 8 }}>{tip}</Body> : null}
+              {tip && !kind ? <Body muted style={{ marginTop: 8 }}>{tip}</Body> : null}
             </Field>
           )}
+
+          {editingId === null && !chosen && (
+            <Field label={tr('Non è nel catalogo? Dimmi che pianta è', 'Not in the catalog? Tell me what it is')}>
+              <ChipRow>
+                {PLANT_KINDS.map((k) => (
+                  <Chip key={k.name} label={cat(k.name)} selected={form.preset === k.name} onPress={() => applyKind(k.name)} />
+                ))}
+              </ChipRow>
+              {tip && kind ? <Body muted style={{ marginTop: 8 }}>{tip}</Body> : null}
+            </Field>
+          )}
+
+          {kind ? (
+            <Field label={tr('Quanto è grande', 'How big it is')}>
+              <ChipRow>
+                {(Object.keys(SIZE_LABEL) as Size[]).map((k) => (
+                  <Chip key={k} label={SIZE_LABEL[k]} selected={size === k} onPress={() => setSize(k)} />
+                ))}
+              </ChipRow>
+              <View style={{ marginTop: 12 }}>
+                <ToggleRow
+                  label={tr('Teme il gelo', 'Fears frost')}
+                  detail={tr(
+                    'Ti ricordo di proteggerla a novembre e di toglierle la protezione in primavera.',
+                    'I’ll remind you to protect it in November and to uncover it in spring.',
+                  )}
+                  on={tender}
+                  onPress={() => setTender((v) => !v)}
+                />
+              </View>
+            </Field>
+          ) : null}
 
           {editingId === null && (
             <Field label={tr('Com’è adesso', 'Where it is now')}>
