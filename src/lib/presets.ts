@@ -71,6 +71,37 @@ export const TASK_ICON: Record<TaskType, string> = {
   other: '📝',
 };
 
+export const MONTH_SHORT = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+
+/** "apr–set", "feb", "mar, nov–gen": months as runs of consecutive months. */
+export function monthsLabel(months: number[]): string {
+  const set = new Set(months);
+  if (set.size === 12) return 'tutto l’anno';
+  // Start right after a missing month so a run across New Year stays whole.
+  let start = 1;
+  while (set.has(start) && start <= 12) start++;
+  const runs: [number, number][] = [];
+  for (let i = 0; i < 12; i++) {
+    const m = ((start - 1 + i) % 12) + 1;
+    if (!set.has(m)) continue;
+    const last = runs[runs.length - 1];
+    if (last && last[1] % 12 === m - 1) last[1] = m;
+    else runs.push([m, m]);
+  }
+  return runs
+    .map(([a, b]) => (a === b ? MONTH_SHORT[a - 1] : `${MONTH_SHORT[a - 1]}–${MONTH_SHORT[b - 1]}`))
+    .join(', ');
+}
+
+/** "ogni 21 giorni, apr–set fino al 3 nov", for a task's repeat rule. Empty for one-off tasks. */
+export function repeatLabel(t: { repeatDays: number | null; yearly: boolean; months: number[] | null }): string {
+  const season = t.months?.length ? monthsLabel(t.months) : '';
+  if (t.yearly) return season ? `ogni anno, ${season}` : 'ogni anno';
+  if (!t.repeatDays) return '';
+  const every = `ogni ${t.repeatDays === 1 ? 'giorno' : `${t.repeatDays} giorni`}`;
+  return season ? `${every}, ${season}` : every;
+}
+
 /** Types a user can pick by hand. Transplant tasks are created by the app. */
 export const TASK_TYPES = (Object.keys(TASK_LABEL) as TaskType[]).filter((t) => t !== 'transplant');
 
