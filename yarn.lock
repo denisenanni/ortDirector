@@ -2997,6 +2997,26 @@ __metadata:
   languageName: node
   linkType: hard
 
+"expo-image-loader@npm:~57.0.1":
+  version: 57.0.1
+  resolution: "expo-image-loader@npm:57.0.1"
+  peerDependencies:
+    expo: "*"
+  checksum: 10c0/c68a12901d789bfc395b045305a68a352e05d4b3e4fcbbe382591a5fff5fcd896e81c4cbb082dfaa520c5ac6ee2c3221c3887b0292b7b831e21779bd360936f0
+  languageName: node
+  linkType: hard
+
+"expo-image-picker@npm:~57.0.20":
+  version: 57.0.20
+  resolution: "expo-image-picker@npm:57.0.20"
+  dependencies:
+    expo-image-loader: "npm:~57.0.1"
+  peerDependencies:
+    expo: "*"
+  checksum: 10c0/8469929213426125ad1568205dd787a7a9576a9708e0d0e2fb2ba4060881fc25e4cfa94f1d21465748552db0a8f5e2c367f03ca182ff07076ca0a9d8a6c0a17b
+  languageName: node
+  linkType: hard
+
 "expo-keep-awake@npm:~57.0.2":
   version: 57.0.2
   resolution: "expo-keep-awake@npm:57.0.2"
@@ -4712,6 +4732,7 @@ __metadata:
     expo-constants: "npm:~57.0.22"
     expo-document-picker: "npm:~57.0.3"
     expo-file-system: "npm:~57.0.7"
+    expo-image-picker: "npm:~57.0.20"
     expo-linking: "npm:~57.0.13"
     expo-notifications: "npm:~57.0.23"
     expo-router: "npm:~57.0.28"

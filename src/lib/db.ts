@@ -1,12 +1,12 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { BACKUP_TABLES, insertFor, makeBackup, type Backup, type Row } from './backup';
 import { planFor, regularWateringFrom, seasonalTasks, transplantReminder, type PlannedTask } from './plans';
-import { presetFor } from './presets';
+import { isAnnual, presetFor } from './presets';
 import { afterRain, completeTask, today } from './schedule';
-import type { DayString, LogEntry, Plant, Stage, Sun, Task, TaskType, TaskWithPlant, Zone } from './types';
+import type { DayString, DoneEntry, LogEntry, Plant, Stage, Sun, Task, TaskType, TaskWithPlant, Zone } from './types';
 
 export const DATABASE_NAME = 'ortdirector.db';
-export const DATABASE_VERSION = 4;
+export const DATABASE_VERSION = 5;
 
 export async function migrate(db: SQLiteDatabase) {
   await db.execAsync('PRAGMA foreign_keys = ON;');
@@ -117,7 +117,20 @@ export async function migrate(db: SQLiteDatabase) {
     }
     version = 4;
   }
-  // Future migrations: if (version === 4) { ...; version = 5; }
+  if (version === 4) {
+    await db.execAsync(`
+      ALTER TABLE plants ADD COLUMN annual INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE plants ADD COLUMN archived_on TEXT;
+      ALTER TABLE plants ADD COLUMN photo TEXT;
+      ALTER TABLE task_log ADD COLUMN prev_due_on TEXT;
+    `);
+    const plants = await db.getAllAsync<PlantRow>('SELECT * FROM plants');
+    for (const p of plants) {
+      if (isAnnual(presetFor(p)?.name)) await db.runAsync('UPDATE plants SET annual = 1 WHERE id = ?', p.id);
+    }
+    version = 5;
+  }
+  // Future migrations: if (version === 5) { ...; version = 6; }
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
 }
 
@@ -140,6 +153,9 @@ interface PlantRow {
   sown_on: string | null;
   planted_on: string | null;
   preset: string | null;
+  annual: number;
+  archived_on: string | null;
+  photo: string | null;
   notes: string | null;
 }
 
@@ -157,6 +173,7 @@ interface TaskRow {
   done_on: string | null;
   notes: string | null;
   plant_name?: string | null;
+  zone_name?: string | null;
 }
 
 const toPlant = (r: PlantRow): Plant => ({
@@ -173,6 +190,9 @@ const toPlant = (r: PlantRow): Plant => ({
   sownOn: r.sown_on,
   plantedOn: r.planted_on,
   preset: r.preset,
+  annual: r.annual === 1,
+  archivedOn: r.archived_on,
+  photo: r.photo,
   notes: r.notes,
 });
 
@@ -190,11 +210,13 @@ const toTask = (r: TaskRow): TaskWithPlant => ({
   doneOn: r.done_on,
   notes: r.notes,
   plantName: r.plant_name ?? null,
+  zoneName: r.zone_name ?? null,
 });
 
 const TASK_SELECT = `
-  SELECT t.*, p.name AS plant_name
-  FROM tasks t LEFT JOIN plants p ON p.id = t.plant_id`;
+  SELECT t.*, p.name AS plant_name, z.name AS zone_name
+  FROM tasks t LEFT JOIN plants p ON p.id = t.plant_id
+  LEFT JOIN zones z ON z.id = p.zone_id`;
 
 // --- Plants ----------------------------------------------------------------
 
@@ -219,9 +241,9 @@ export async function createPlant(db: SQLiteDatabase, p: PlantInput): Promise<nu
   await db.withTransactionAsync(async () => {
     const res = await db.runAsync(
       `INSERT INTO plants (name, variety, location, zone_id, potted, sun, water_every_days, water_cold_days,
-       stage, sown_on, planted_on, preset, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       stage, sown_on, planted_on, preset, annual, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       p.name, p.variety, p.location, p.zoneId, p.potted ? 1 : 0, p.sun, p.waterEveryDays, p.waterColdDays,
-      p.stage, p.sownOn, p.plantedOn, p.preset, p.notes,
+      p.stage, p.sownOn, p.plantedOn, p.preset, p.annual ? 1 : 0, p.notes,
     );
     id = res.lastInsertRowId;
     if (p.waterEveryDays) await insertWaterTask(db, id, p);
@@ -256,9 +278,9 @@ export async function updatePlant(db: SQLiteDatabase, id: number, p: PlantInput)
   await db.withTransactionAsync(async () => {
     await db.runAsync(
       `UPDATE plants SET name = ?, variety = ?, location = ?, zone_id = ?, potted = ?, sun = ?, water_every_days = ?,
-       water_cold_days = ?, stage = ?, sown_on = ?, planted_on = ?, preset = ?, notes = ? WHERE id = ?`,
+       water_cold_days = ?, stage = ?, sown_on = ?, planted_on = ?, preset = ?, annual = ?, notes = ? WHERE id = ?`,
       p.name, p.variety, p.location, p.zoneId, p.potted ? 1 : 0, p.sun, p.waterEveryDays, p.waterColdDays,
-      p.stage, p.sownOn, p.plantedOn, p.preset, p.notes, id,
+      p.stage, p.sownOn, p.plantedOn, p.preset, p.annual ? 1 : 0, p.notes, id,
     );
     await syncTransplantReminder(db, id, p);
     // The regular watering task; plan watering has an end day.
@@ -333,6 +355,32 @@ export async function deletePlant(db: SQLiteDatabase, id: number) {
   await db.runAsync('DELETE FROM plants WHERE id = ?', id);
 }
 
+export async function setPlantPhoto(db: SQLiteDatabase, id: number, photo: string | null) {
+  await db.runAsync('UPDATE plants SET photo = ? WHERE id = ?', photo, id);
+}
+
+/**
+ * End of season: the plant and its history stay, its open tasks go, so it
+ * no longer shows up in Oggi.
+ */
+export async function archivePlant(db: SQLiteDatabase, id: number, day: DayString = today()) {
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('UPDATE plants SET archived_on = ? WHERE id = ?', day, id);
+    await db.runAsync('DELETE FROM tasks WHERE plant_id = ? AND done_on IS NULL', id);
+  });
+}
+
+/** Brings an archived plant back, with its watering due today and its seasonal care. */
+export async function restorePlant(db: SQLiteDatabase, id: number) {
+  const p = await getPlant(db, id);
+  if (!p) return;
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('UPDATE plants SET archived_on = NULL WHERE id = ?', id);
+    if (p.waterEveryDays) await insertWaterTask(db, id, p);
+    for (const t of seasonalTasks(planFor(presetFor(p)?.name), today())) await insertTask(db, id, t);
+  });
+}
+
 // --- Tasks -----------------------------------------------------------------
 
 export type TaskInput = Pick<
@@ -398,14 +446,37 @@ export async function markDone(db: SQLiteDatabase, task: Task, doneOn: DayString
   const next = completeTask(task, doneOn);
   await db.withTransactionAsync(async () => {
     await db.runAsync(
-      'INSERT INTO task_log (task_id, plant_id, type, title, done_on) VALUES (?, ?, ?, ?, ?)',
-      task.id, task.plantId, task.type, task.title, doneOn,
+      'INSERT INTO task_log (task_id, plant_id, type, title, done_on, prev_due_on) VALUES (?, ?, ?, ?, ?, ?)',
+      task.id, task.plantId, task.type, task.title, doneOn, task.dueOn,
     );
     if (next.dueOn) {
       await db.runAsync('UPDATE tasks SET due_on = ? WHERE id = ?', next.dueOn, task.id);
     } else {
       await db.runAsync('UPDATE tasks SET done_on = ? WHERE id = ?', next.doneOn, task.id);
     }
+  });
+}
+
+/** What was done on `day`, with plant and zone names, for the checked rows in Oggi. */
+export async function listDoneOn(db: SQLiteDatabase, day: DayString = today()): Promise<DoneEntry[]> {
+  return db.getAllAsync<DoneEntry>(
+    `SELECT l.id, l.task_id AS taskId, l.plant_id AS plantId, l.type, l.title, l.done_on AS doneOn,
+       l.prev_due_on AS prevDueOn, p.name AS plantName, z.name AS zoneName
+     FROM task_log l LEFT JOIN plants p ON p.id = l.plant_id LEFT JOIN zones z ON z.id = p.zone_id
+     WHERE l.done_on = ? ORDER BY l.id`,
+    day,
+  );
+}
+
+/**
+ * Un-ticks a task: it goes back to the day it was due and leaves the
+ * history. Only for entries markDone wrote, whose task still exists.
+ */
+export async function undoDone(db: SQLiteDatabase, entry: DoneEntry) {
+  if (entry.taskId === null || entry.prevDueOn === null) return;
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('UPDATE tasks SET due_on = ?, done_on = NULL WHERE id = ?', entry.prevDueOn, entry.taskId);
+    await db.runAsync('DELETE FROM task_log WHERE id = ?', entry.id);
   });
 }
 
@@ -477,7 +548,19 @@ export async function saveZone(db: SQLiteDatabase, z: Omit<Zone, 'id'> & { id?: 
 }
 
 /** Deletes the zone; its plants stay, without a zone. */
+/** How many plants are in the zone, archived ones included. */
+export async function countZonePlants(db: SQLiteDatabase, id: number): Promise<{ total: number; archived: number }> {
+  const r = await db.getFirstAsync<{ total: number; archived: number | null }>(
+    'SELECT COUNT(*) AS total, SUM(archived_on IS NOT NULL) AS archived FROM plants WHERE zone_id = ?',
+    id,
+  );
+  return { total: r?.total ?? 0, archived: r?.archived ?? 0 };
+}
+
+/** Deletes an empty zone. Throws if plants are still in it. */
 export async function deleteZone(db: SQLiteDatabase, id: number) {
+  const { total } = await countZonePlants(db, id);
+  if (total > 0) throw new Error('La zona ha ancora delle piante.');
   await db.runAsync('DELETE FROM zones WHERE id = ?', id);
 }
 
@@ -496,7 +579,12 @@ export async function importBackup(db: SQLiteDatabase, backup: Backup) {
     for (const t of BACKUP_TABLES) {
       const info = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${t})`);
       const columns = info.map((c) => c.name);
-      for (const row of backup.tables[t]) {
+      for (const raw of backup.tables[t]) {
+        // Backups from before v5 don't say whether a plant is annual: guess it as the migration does.
+        const row =
+          t === 'plants' && !('annual' in raw)
+            ? { ...raw, annual: isAnnual(presetFor(raw as unknown as PlantRow)?.name) ? 1 : 0 }
+            : raw;
         const insert = insertFor(t, row, columns);
         if (insert) await db.runAsync(insert.sql, insert.values);
       }

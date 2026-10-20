@@ -6,7 +6,8 @@ import { Body, Button, Chip, ChipRow, Field, Input, PastDayPicker, Screen, Stepp
 import { coldWateringDefault, createPlant, deletePlant, getPlant, listZones, updatePlant, type PlantInput } from '@/lib/db';
 import { syncReminders } from '@/lib/notifications';
 import { planFor } from '@/lib/plans';
-import { PLANT_PRESETS, SUN_ICON, SUN_LABEL, presetFor } from '@/lib/presets';
+import { PLANT_PRESETS, SUN_ICON, SUN_LABEL, isAnnual, presetFor } from '@/lib/presets';
+import { deletePhoto } from '@/lib/photos';
 import { sunMismatch, today as getToday } from '@/lib/schedule';
 import type { Sun, Zone } from '@/lib/types';
 
@@ -35,6 +36,9 @@ const EMPTY: PlantInput = {
   sownOn: null,
   plantedOn: null,
   preset: null,
+  annual: false,
+  archivedOn: null,
+  photo: null,
   notes: null,
 };
 
@@ -86,6 +90,7 @@ export default function EditPlantScreen() {
       ...f,
       name: preset.name,
       preset: preset.name,
+      annual: isAnnual(preset.name),
       sun: preset.sun,
       waterEveryDays: preset.waterEveryDays,
       waterColdDays: coldWateringDefault(preset.waterEveryDays),
@@ -137,6 +142,7 @@ export default function EditPlantScreen() {
         style: 'destructive',
         onPress: async () => {
           await deletePlant(db, editingId);
+          deletePhoto(form.photo);
           syncReminders(db);
           router.dismissTo('/plants');
         },
@@ -247,6 +253,15 @@ export default function EditPlantScreen() {
               />
             </Field>
           ) : null}
+          <Field label="Ciclo">
+            <ChipRow>
+              <Chip label="Annuale" selected={form.annual} onPress={() => set('annual', true)} />
+              <Chip label="Perenne" selected={!form.annual} onPress={() => set('annual', false)} />
+            </ChipRow>
+            <Body muted style={{ marginTop: 8 }}>
+              Le annuali a fine stagione si archiviano: restano con il loro storico ma spariscono da Oggi.
+            </Body>
+          </Field>
           <Field label="Note">
             <Input value={form.notes ?? ''} onChangeText={(v) => set('notes', v)} multiline placeholder="Concime, problemi, osservazioni…" />
           </Field>

@@ -2,21 +2,24 @@ import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 import { ScrollView, View } from 'react-native';
-import { TaskRow } from '@/components/TaskRow';
+import { DoneRow, TaskRow } from '@/components/TaskRow';
 import { Body, Button, Empty, Screen, SectionHeader } from '@/components/ui';
-import { listOpenTasks, markDone, rained } from '@/lib/db';
+import { listDoneOn, listOpenTasks, markDone, rained, undoDone } from '@/lib/db';
 import { ensurePermission, syncReminders } from '@/lib/notifications';
 import { addDays, today as getToday } from '@/lib/schedule';
-import type { TaskWithPlant } from '@/lib/types';
+import type { DoneEntry, TaskWithPlant } from '@/lib/types';
 
 export default function TodayScreen() {
   const db = useSQLiteContext();
   const [tasks, setTasks] = useState<TaskWithPlant[] | null>(null);
+  const [done, setDone] = useState<DoneEntry[]>([]);
   const [rainNote, setRainNote] = useState<string | null>(null);
   const today = getToday();
 
   const load = useCallback(async () => {
-    setTasks(await listOpenTasks(db));
+    const [open, ticked] = await Promise.all([listOpenTasks(db), listDoneOn(db)]);
+    setTasks(open);
+    setDone(ticked);
   }, [db]);
 
   useFocusEffect(
@@ -29,6 +32,12 @@ export default function TodayScreen() {
 
   const onDone = async (task: TaskWithPlant) => {
     await markDone(db, task);
+    await load();
+    syncReminders(db);
+  };
+
+  const onUndo = async (entry: DoneEntry) => {
+    await undoDone(db, entry);
     await load();
     syncReminders(db);
   };
@@ -54,7 +63,7 @@ export default function TodayScreen() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-        {tasks.length === 0 ? (
+        {tasks.length === 0 && done.length === 0 ? (
           <Empty
             title="Niente da fare"
             hint="Aggiungi una pianta con un intervallo di irrigazione, o crea un’attività."
@@ -67,9 +76,9 @@ export default function TodayScreen() {
         {rainNote ? <Body muted style={{ marginTop: 6, textAlign: 'center' }}>{rainNote}</Body> : null}
 
         {due.length > 0 && <SectionHeader>Da fare oggi</SectionHeader>}
+        {due.length === 0 && (tasks.length > 0 || done.length > 0) && <SectionHeader>Oggi è tutto fatto ✨</SectionHeader>}
         {due.map((t) => <TaskRow key={t.id} task={t} today={today} onDone={onDone} />)}
-
-        {tasks.length > 0 && due.length === 0 && <SectionHeader>Oggi è tutto fatto ✨</SectionHeader>}
+        {done.map((e) => <DoneRow key={`done-${e.id}`} entry={e} onUndo={onUndo} />)}
 
         {soon.length > 0 && <SectionHeader>Prossimi 7 giorni</SectionHeader>}
         {soon.map((t) => <TaskRow key={t.id} task={t} today={today} onDone={onDone} />)}

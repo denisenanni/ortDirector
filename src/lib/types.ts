@@ -48,6 +48,12 @@ export interface Plant {
   plantedOn: DayString | null;
   /** Catalog entry the plant was created from, which picks its care plan. */
   preset: string | null;
+  /** Lives one season (most vegetables): archived at the end instead of deleted. */
+  annual: boolean;
+  /** Day it was archived; archived plants keep their history but have no tasks. */
+  archivedOn: DayString | null;
+  /** The plant's photo: a file name in the app's photo folder, or a data URL on web. */
+  photo: string | null;
   notes: string | null;
 }
 
@@ -73,6 +79,7 @@ export interface Task {
 /** A task joined with the name of its plant, for lists. */
 export interface TaskWithPlant extends Task {
   plantName: string | null;
+  zoneName: string | null;
 }
 
 export interface LogEntry {
@@ -82,4 +89,12 @@ export interface LogEntry {
   type: TaskType;
   title: string;
   doneOn: DayString;
+}
+
+/** A history entry as Oggi shows it: ticked today, possibly to undo. */
+export interface DoneEntry extends LogEntry {
+  /** The day the task was due before it was ticked; null when it can't be undone. */
+  prevDueOn: DayString | null;
+  plantName: string | null;
+  zoneName: string | null;
 }

@@ -19,6 +19,7 @@ const light = {
   border: '#DCE2D3',
   accent: '#3F7D20',
   accentText: '#FFFFFF',
+  accentSoft: '#E3EED9',
   danger: '#B3261E',
   warn: '#A15C00',
 };
@@ -31,6 +32,7 @@ const dark: typeof light = {
   border: '#2E3729',
   accent: '#7CC152',
   accentText: '#0E1409',
+  accentSoft: '#26331D',
   danger: '#F2B8B5',
   warn: '#FFB95C',
 };

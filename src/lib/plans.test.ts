@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PLANS, expandPlan, regularWateringFrom, seasonalTasks, transplantReminder } from './plans.ts';
-import { PLANT_PRESETS } from './presets.ts';
+import { PLANT_PRESETS, isAnnual } from './presets.ts';
 
 test('every catalog plant has a plan, and every plan a catalog plant', () => {
   assert.deepEqual(
@@ -95,4 +95,12 @@ test('a savoy cabbage transplanted in August is picked from October', () => {
   assert.equal(byTitle['Controllo cavolaia (sotto le foglie)'].dueOn, '2026-08-15');
   assert.equal(byTitle['Raccolta'].dueOn, '2026-11-29');
   assert.deepEqual(byTitle['Raccolta'].months, [10, 11, 12, 1, 2, 3]);
+});
+
+test('vegetables are annual, shrubs and herbs that last are not', () => {
+  assert.equal(isAnnual('Pomodoro'), true);
+  assert.equal(isAnnual('Finocchio'), true);
+  assert.equal(isAnnual('Menta'), false);
+  assert.equal(isAnnual('Rosa'), false);
+  assert.equal(isAnnual(undefined), false);
 });

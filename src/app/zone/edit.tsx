@@ -1,9 +1,10 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Body, Button, Chip, ChipRow, Field, Input, Screen } from '@/components/ui';
-import { deleteZone, getZone, saveZone } from '@/lib/db';
+import { countZonePlants, deleteZone, getZone, saveZone } from '@/lib/db';
+import { confirm, notify } from '@/lib/dialogs';
 import { SUN_ICON, SUN_LABEL } from '@/lib/presets';
 import type { Sun, Zone } from '@/lib/types';
 
@@ -27,19 +28,20 @@ export default function EditZoneScreen() {
     router.back();
   };
 
-  const remove = () => {
+  const remove = async () => {
     if (editingId === null) return;
-    Alert.alert('Eliminare la zona?', 'Le piante restano, senza zona.', [
-      { text: 'Annulla', style: 'cancel' },
-      {
-        text: 'Elimina',
-        style: 'destructive',
-        onPress: async () => {
-          await deleteZone(db, editingId);
-          router.back();
-        },
-      },
-    ]);
+    const { total, archived } = await countZonePlants(db, editingId);
+    if (total > 0) {
+      const one = total === 1;
+      const what = one ? 'C’è ancora 1 pianta' : `Ci sono ancora ${total} piante`;
+      const inArchive = archived > 0 ? ` (${archived} in archivio)` : '';
+      const fix = one ? 'Spostala in un’altra zona o eliminala' : 'Spostale in un’altra zona o eliminale';
+      notify('Non puoi eliminare la zona', `${what} in questa zona${inArchive}. ${fix}, poi riprova.`);
+      return;
+    }
+    if (!(await confirm('Eliminare la zona?', 'La zona è vuota.', 'Elimina', true))) return;
+    await deleteZone(db, editingId);
+    router.back();
   };
 
   return (

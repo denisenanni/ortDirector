@@ -31,6 +31,14 @@
         {
           "enableRemoteNotifications": false
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "ortDirector usa le tue foto per la foto di ogni pianta.",
+          "cameraPermission": "ortDirector usa la fotocamera per fotografare le piante.",
+          "microphonePermission": false
+        }
       ]
     ],
     "scheme": "ortdirector",
