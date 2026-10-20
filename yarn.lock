@@ -777,6 +777,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@expo-google-fonts/fraunces@npm:^0.4.1":
+  version: 0.4.1
+  resolution: "@expo-google-fonts/fraunces@npm:0.4.1"
+  checksum: 10c0/b9bc153e51eb7fff711909b1cc132bce739f5d4a173c229a1041ccfff2fea7ebc721685462c8733ad076e6f41e81e180161e1b27655222f1d9b397ddcfd30b2e
+  languageName: node
+  linkType: hard
+
 "@expo-google-fonts/material-symbols@npm:^0.4.1":
   version: 0.4.50
   resolution: "@expo-google-fonts/material-symbols@npm:0.4.50"
@@ -3208,7 +3215,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"expo-symbols@npm:^57.0.3":
+"expo-symbols@npm:^57.0.3, expo-symbols@npm:~57.0.3":
   version: 57.0.3
   resolution: "expo-symbols@npm:57.0.3"
   dependencies:
@@ -4726,12 +4733,14 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "ortdirector@workspace:."
   dependencies:
+    "@expo-google-fonts/fraunces": "npm:^0.4.1"
     "@types/node": "npm:^22.20.5"
     "@types/react": "npm:~19.2.2"
     expo: "npm:~57.0.30"
     expo-constants: "npm:~57.0.22"
     expo-document-picker: "npm:~57.0.3"
     expo-file-system: "npm:~57.0.7"
+    expo-font: "npm:~57.0.4"
     expo-image-picker: "npm:~57.0.20"
     expo-linking: "npm:~57.0.13"
     expo-notifications: "npm:~57.0.23"
@@ -4739,6 +4748,7 @@ __metadata:
     expo-sharing: "npm:~57.0.23"
     expo-sqlite: "npm:~57.0.4"
     expo-status-bar: "npm:~57.0.1"
+    expo-symbols: "npm:~57.0.3"
     react: "npm:19.2.3"
     react-dom: "npm:19.2.3"
     react-native: "npm:0.86.3"

@@ -3,7 +3,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 import { Alert, Linking, Platform, ScrollView } from 'react-native';
 import * as Notifications from 'expo-notifications';
-import { Body, Button, Field, Screen, SectionHeader, Stepper, useTheme } from '@/components/ui';
+import { Body, Button, Card, Field, LargeHeader, Screen, SectionHeader, Stepper, useTheme } from '@/components/ui';
 import { parseBackup } from '@/lib/backup';
 import { pickBackupFile, saveBackupFile } from '@/lib/backupFile';
 import {
@@ -97,42 +97,48 @@ export default function SettingsScreen() {
 
   return (
     <Screen>
-      <ScrollView contentContainerStyle={{ padding: 16 }}>
-        <Field label="Ora del promemoria giornaliero">
-          {hour !== null && (
-            <Stepper
-              value={hour}
-              onChange={changeHour}
-              min={0}
-              max={23}
-              format={(h) => `${String(h).padStart(2, '0')}:00`}
-            />
-          )}
-        </Field>
-        <Body muted>
-          Ogni giorno con attività in scadenza ricevi una sola notifica a quest’ora, con l’elenco di cosa fare.
-        </Body>
-        {granted === false && (
-          <>
-            <Body style={{ marginTop: 18 }}>Le notifiche sono disattivate.</Body>
-            <Button label="Attiva notifiche" onPress={enable} />
-          </>
-        )}
-        <SectionHeader>Backup</SectionHeader>
-        <Body muted>
-          I dati restano solo su questo telefono: se lo perdi, perdi tutto. Esporta un backup ogni tanto e salvalo su
-          iCloud Drive o dove vuoi. Le foto delle piante non sono nel backup.
-        </Body>
-        {lastBackup ? (
-          <Body muted style={{ marginTop: 6 }}>
-            Ultimo backup: {fromDay(lastBackup).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+        <LargeHeader title="Impostazioni" />
+        <SectionHeader>Promemoria</SectionHeader>
+        <Card>
+          <Field label="Ora del promemoria giornaliero">
+            {hour !== null && (
+              <Stepper
+                value={hour}
+                onChange={changeHour}
+                min={0}
+                max={23}
+                format={(h) => `${String(h).padStart(2, '0')}:00`}
+              />
+            )}
+          </Field>
+          <Body muted>
+            Ogni giorno con attività in scadenza ricevi una sola notifica a quest’ora, con l’elenco di cosa fare.
           </Body>
-        ) : null}
-        <Button label="Esporta backup" onPress={doExport} />
-        <Button kind="secondary" label="Importa backup" onPress={doImport} />
-        {backupNote ? (
-          <Body style={{ marginTop: 8, color: backupNote.error ? t.danger : t.muted }}>{backupNote.text}</Body>
-        ) : null}
+          {granted === false && (
+            <>
+              <Body style={{ marginTop: 18 }}>Le notifiche sono disattivate.</Body>
+              <Button label="Attiva notifiche" onPress={enable} />
+            </>
+          )}
+        </Card>
+        <SectionHeader>Backup</SectionHeader>
+        <Card>
+          <Body muted>
+            I dati restano solo su questo telefono: se lo perdi, perdi tutto. Esporta un backup ogni tanto e salvalo su
+            iCloud Drive o dove vuoi. Le foto delle piante non sono nel backup.
+          </Body>
+          {lastBackup ? (
+            <Body muted style={{ marginTop: 6 }}>
+              Ultimo backup: {fromDay(lastBackup).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </Body>
+          ) : null}
+          <Button label="Esporta backup" onPress={doExport} />
+          <Button kind="secondary" label="Importa backup" onPress={doImport} />
+          {backupNote ? (
+            <Body style={{ marginTop: 8, color: backupNote.error ? t.danger : t.muted }}>{backupNote.text}</Body>
+          ) : null}
+        </Card>
       </ScrollView>
     </Screen>
   );

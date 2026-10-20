@@ -1,15 +1,16 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { Body, Button, Chip, ChipRow, Field, Input, PastDayPicker, Screen, Stepper, useTheme } from '@/components/ui';
 import { coldWateringDefault, createPlant, deletePlant, getPlant, listZones, updatePlant, type PlantInput } from '@/lib/db';
 import { syncReminders } from '@/lib/notifications';
 import { planFor } from '@/lib/plans';
-import { PLANT_PRESETS, SUN_ICON, SUN_LABEL, isAnnual, presetFor } from '@/lib/presets';
+import { PLANT_PRESETS, SUN_LABEL, isAnnual, presetFor } from '@/lib/presets';
 import { deletePhoto } from '@/lib/photos';
 import { sunMismatch, today as getToday } from '@/lib/schedule';
 import type { Sun, Zone } from '@/lib/types';
+import { SUN_SYMBOL } from '@/components/Icon';
 
 const SUNS: Sun[] = ['full', 'partial', 'shade'];
 
@@ -17,10 +18,10 @@ const SUNS: Sun[] = ['full', 'partial', 'shade'];
 type Start = 'sown' | 'seedling' | 'ground' | 'potted';
 
 const START_LABEL: Record<Start, string> = {
-  sown: '🌰 Seminata',
-  seedling: '🌱 Piantina da trapiantare',
-  ground: '🌳 A dimora in terra',
-  potted: '🪴 In vaso',
+  sown: 'Seminata',
+  seedling: 'Piantina da trapiantare',
+  ground: 'A dimora in terra',
+  potted: 'In vaso',
 };
 
 const EMPTY: PlantInput = {
@@ -156,12 +157,29 @@ export default function EditPlantScreen() {
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
           {editingId === null && (
             <Field label="Parti da una pianta comune">
-              <ChipRow>
-                {PLANT_PRESETS.map((p) => (
-                  <Chip key={p.name} label={p.name} selected={form.preset === p.name} onPress={() => applyPreset(p.name)} />
-                ))}
-              </ChipRow>
-              {tip ? <Body muted style={{ marginTop: 8 }}>💡 {tip}</Body> : null}
+              {/* Two scrolling rows instead of a wall of chips. */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ marginHorizontal: -16 }}
+                contentContainerStyle={{ paddingHorizontal: 16 }}
+              >
+                <View style={{ gap: 8 }}>
+                  {[0, 1].map((r) => (
+                    <View key={r} style={{ flexDirection: 'row', gap: 8 }}>
+                      {PLANT_PRESETS.filter((_, i) => i % 2 === r).map((p) => (
+                        <Chip
+                          key={p.name}
+                          label={p.name}
+                          selected={form.preset === p.name}
+                          onPress={() => applyPreset(p.name)}
+                        />
+                      ))}
+                    </View>
+                  ))}
+                </View>
+              </ScrollView>
+              {tip ? <Body muted style={{ marginTop: 8 }}>{tip}</Body> : null}
             </Field>
           )}
 
@@ -188,8 +206,8 @@ export default function EditPlantScreen() {
           {editingId !== null && form.stage === 'ground' ? (
             <Field label="Dove">
               <ChipRow>
-                <Chip label="🌳 In terra" selected={!form.potted} onPress={() => set('potted', false)} />
-                <Chip label="🪴 In vaso" selected={form.potted} onPress={() => set('potted', true)} />
+                <Chip icon="ground" label="In terra" selected={!form.potted} onPress={() => set('potted', false)} />
+                <Chip label="In vaso" selected={form.potted} onPress={() => set('potted', true)} />
               </ChipRow>
             </Field>
           ) : null}
@@ -217,19 +235,20 @@ export default function EditPlantScreen() {
               {zones.map((z) => (
                 <Chip
                   key={z.id}
-                  label={`${SUN_ICON[z.sun]} ${z.name}`}
+                  icon={SUN_SYMBOL[z.sun]}
+                  label={z.name}
                   selected={form.zoneId === z.id}
                   onPress={() => set('zoneId', z.id)}
                 />
               ))}
-              <Chip label="＋ Nuova zona" onPress={() => router.push('/zone/edit')} />
+              <Chip icon="add" label="Nuova zona" onPress={() => router.push('/zone/edit')} />
             </ChipRow>
-            {mismatch ? <Body style={{ marginTop: 8, color: t.warn }}>⚠️ {mismatch}</Body> : null}
+            {mismatch ? <Body style={{ marginTop: 8, color: t.warn }}>{mismatch}</Body> : null}
           </Field>
           <Field label="Sole che le serve">
             <ChipRow>
               {SUNS.map((s) => (
-                <Chip key={s} label={`${SUN_ICON[s]} ${SUN_LABEL[s]}`} selected={form.sun === s} onPress={() => set('sun', s)} />
+                <Chip key={s} icon={SUN_SYMBOL[s]} label={SUN_LABEL[s]} selected={form.sun === s} onPress={() => set('sun', s)} />
               ))}
             </ChipRow>
           </Field>

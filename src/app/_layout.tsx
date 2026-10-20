@@ -1,3 +1,4 @@
+import { Fraunces_600SemiBold, useFonts } from '@expo-google-fonts/fraunces';
 import { Stack } from 'expo-router';
 import { SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
@@ -7,6 +8,8 @@ import '@/lib/notifications';
 
 export default function RootLayout() {
   const t = useTheme();
+  const [fontsLoaded] = useFonts({ Fraunces_600SemiBold });
+  if (!fontsLoaded) return null;
   return (
     <SQLiteProvider databaseName={DATABASE_NAME} onInit={migrate}>
       <StatusBar style="auto" />
@@ -14,7 +17,8 @@ export default function RootLayout() {
         screenOptions={{
           headerStyle: { backgroundColor: t.bg },
           headerTintColor: t.accent,
-          headerTitleStyle: { color: t.text },
+          headerTitleStyle: { color: t.text, fontFamily: 'Fraunces_600SemiBold' },
+          headerShadowVisible: false,
           contentStyle: { backgroundColor: t.bg },
           headerBackTitle: 'Indietro',
         }}

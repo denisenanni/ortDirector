@@ -1,10 +1,23 @@
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { TASK_ICON, repeatLabel } from '@/lib/presets';
-import { daysBetween, fromDay, relativeLabel } from '@/lib/schedule';
-import type { DoneEntry, TaskWithPlant } from '@/lib/types';
-import { useTheme } from './ui';
+import { repeatLabel } from '@/lib/presets';
+import { daysBetween, fromDay, intervalOn, relativeLabel } from '@/lib/schedule';
+import type { DoneEntry, TaskType, TaskWithPlant } from '@/lib/types';
+import { Icon, TASK_SYMBOL } from './Icon';
+import { IconTile, useTheme, type Tone } from './ui';
 
+export const TASK_TONE: Record<TaskType, Tone> = {
+  water: 'water',
+  check: 'accent',
+  prune: 'accent',
+  fertilize: 'sun',
+  treat: 'warn',
+  harvest: 'sun',
+  transplant: 'accent',
+  other: 'neutral',
+};
+
+/** One task as a row of a Group: what, on which plant and where, when; the tick on the right. */
 export function TaskRow({
   task,
   today,
@@ -18,32 +31,37 @@ export function TaskRow({
 }) {
   const t = useTheme();
   const overdue = daysBetween(today, task.dueOn) < 0;
+  const where = showPlant ? [task.plantName, task.zoneName].filter(Boolean).join(' · ') : '';
+  // Only the interval in force now; the task screen shows both seasons.
+  const repeat = repeatLabel({ ...task, repeatDays: intervalOn(task, today), coldRepeatDays: null });
+  const until =
+    (task.repeatDays || task.yearly) && task.endsOn
+      ? ` fino al ${fromDay(task.endsOn).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}`
+      : '';
   return (
-    <View style={[styles.row, { backgroundColor: t.card, borderColor: t.border }]}>
-      {showPlant && task.zoneName ? <ZoneTag name={task.zoneName} /> : null}
+    <View style={styles.row}>
+      <Pressable
+        style={styles.main}
+        onPress={() => router.push({ pathname: '/task/edit', params: { id: String(task.id) } })}
+      >
+        <IconTile icon={TASK_SYMBOL[task.type]} tone={TASK_TONE[task.type]} />
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.title, { color: t.text }]}>{task.title}</Text>
+          {where ? <Text style={[styles.where, { color: t.text }]}>{where}</Text> : null}
+          <Text style={[styles.meta, { color: t.muted }]}>
+            <Text style={overdue ? { color: t.warn, fontWeight: '700' } : null}>{relativeLabel(task.dueOn, today)}</Text>
+            {repeat ? ` · ${repeat}` : ''}
+            {until}
+          </Text>
+        </View>
+      </Pressable>
       <Pressable
         accessibilityRole="checkbox"
         accessibilityLabel={`Segna come fatto: ${task.title}`}
         onPress={() => (task.type === 'transplant' ? openTransplant(task) : onDone(task))}
-        hitSlop={10}
-        style={[styles.check, { borderColor: t.accent }]}
+        hitSlop={12}
+        style={[styles.check, { borderColor: overdue ? t.warn : t.accent }]}
       />
-      <Pressable
-        style={{ flex: 1 }}
-        onPress={() => router.push({ pathname: '/task/edit', params: { id: String(task.id) } })}
-      >
-        <Text style={[styles.title, { color: t.text }]}>
-          {TASK_ICON[task.type]} {task.title}
-          {showPlant && task.plantName ? <Text style={{ color: t.muted }}> · {task.plantName}</Text> : null}
-        </Text>
-        <Text style={{ color: overdue ? t.warn : t.muted, fontSize: 14, marginTop: 2 }}>
-          {relativeLabel(task.dueOn, today)}
-          {repeatLabel(task) ? ` · ${repeatLabel(task)}` : ''}
-          {(task.repeatDays || task.yearly) && task.endsOn
-            ? ` fino al ${fromDay(task.endsOn).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}`
-            : ''}
-        </Text>
-      </Pressable>
     </View>
   );
 }
@@ -52,38 +70,28 @@ export function TaskRow({
 export function DoneRow({ entry, onUndo }: { entry: DoneEntry; onUndo: (e: DoneEntry) => void }) {
   const t = useTheme();
   const undoable = entry.taskId !== null;
+  const where = [entry.plantName, entry.zoneName].filter(Boolean).join(' · ');
   return (
-    <View style={[styles.row, { backgroundColor: t.card, borderColor: t.border, opacity: 0.6 }]}>
-      {entry.zoneName ? <ZoneTag name={entry.zoneName} /> : null}
+    <View style={styles.row}>
+      <View style={[styles.main, { opacity: 0.55 }]}>
+        <IconTile icon={TASK_SYMBOL[entry.type]} tone="neutral" />
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.title, { color: t.text, textDecorationLine: 'line-through' }]}>{entry.title}</Text>
+          {where ? <Text style={[styles.where, { color: t.text }]}>{where}</Text> : null}
+          <Text style={[styles.meta, { color: t.muted }]}>Fatto oggi</Text>
+        </View>
+      </View>
       <Pressable
         accessibilityRole="checkbox"
         accessibilityState={{ checked: true, disabled: !undoable }}
         accessibilityLabel={`Fatto: ${entry.title}${undoable ? '. Tocca per annullare' : ''}`}
         onPress={() => undoable && onUndo(entry)}
         disabled={!undoable}
-        hitSlop={10}
+        hitSlop={12}
         style={[styles.check, styles.checked, { borderColor: t.accent, backgroundColor: t.accent }]}
       >
-        <Text style={{ color: t.accentText, fontSize: 15, fontWeight: '700' }}>✓</Text>
+        <Icon name="tick" size={16} color={t.accentText} />
       </Pressable>
-      <View style={{ flex: 1 }}>
-        <Text style={[styles.title, { color: t.text, textDecorationLine: 'line-through' }]}>
-          {TASK_ICON[entry.type]} {entry.title}
-          {entry.plantName ? <Text style={{ color: t.muted }}> · {entry.plantName}</Text> : null}
-        </Text>
-        <Text style={{ color: t.muted, fontSize: 14, marginTop: 2 }}>Fatto oggi</Text>
-      </View>
-    </View>
-  );
-}
-
-function ZoneTag({ name }: { name: string }) {
-  const t = useTheme();
-  return (
-    <View style={[styles.zone, { backgroundColor: t.accentSoft }]}>
-      <Text numberOfLines={2} style={[styles.zoneText, { color: t.accent }]}>
-        {name}
-      </Text>
     </View>
   );
 }
@@ -96,19 +104,11 @@ export function openTransplant(task: Pick<TaskWithPlant, 'plantId'>) {
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    marginBottom: 8,
-  },
-  zone: { width: 76, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 6 },
-  zoneText: { fontSize: 12, fontWeight: '600', textAlign: 'center' },
-  check: { width: 26, height: 26, borderRadius: 13, borderWidth: 2 },
+  row: { flexDirection: 'row', alignItems: 'center', paddingRight: 16 },
+  main: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, paddingLeft: 14 },
+  title: { fontSize: 16, fontWeight: '600' },
+  where: { fontSize: 15, marginTop: 1 },
+  meta: { fontSize: 14, marginTop: 2 },
+  check: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, marginLeft: 12 },
   checked: { alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 16, fontWeight: '500' },
 });

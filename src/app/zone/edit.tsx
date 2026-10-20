@@ -5,8 +5,9 @@ import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Body, Button, Chip, ChipRow, Field, Input, Screen } from '@/components/ui';
 import { countZonePlants, deleteZone, getZone, saveZone } from '@/lib/db';
 import { confirm, notify } from '@/lib/dialogs';
-import { SUN_ICON, SUN_LABEL } from '@/lib/presets';
+import { SUN_LABEL } from '@/lib/presets';
 import type { Sun, Zone } from '@/lib/types';
+import { SUN_SYMBOL } from '@/components/Icon';
 
 const SUNS: Sun[] = ['full', 'partial', 'shade'];
 
@@ -60,7 +61,8 @@ export default function EditZoneScreen() {
               {SUNS.map((s) => (
                 <Chip
                   key={s}
-                  label={`${SUN_ICON[s]} ${SUN_LABEL[s]}`}
+                  icon={SUN_SYMBOL[s]}
+                  label={SUN_LABEL[s]}
                   selected={form.sun === s}
                   onPress={() => setForm((f) => ({ ...f, sun: s }))}
                 />
@@ -72,8 +74,8 @@ export default function EditZoneScreen() {
           </Field>
           <Field label="Pioggia">
             <ChipRow>
-              <Chip label="🌧️ All’aperto" selected={!form.covered} onPress={() => setForm((f) => ({ ...f, covered: false }))} />
-              <Chip label="🏠 Al coperto" selected={form.covered} onPress={() => setForm((f) => ({ ...f, covered: true }))} />
+              <Chip icon="rain" label="All’aperto" selected={!form.covered} onPress={() => setForm((f) => ({ ...f, covered: false }))} />
+              <Chip icon="covered" label="Al coperto" selected={form.covered} onPress={() => setForm((f) => ({ ...f, covered: true }))} />
             </ChipRow>
             <Body muted style={{ marginTop: 8 }}>
               Al coperto (serra, tettoia, in casa) la pioggia non conta come annaffiatura.

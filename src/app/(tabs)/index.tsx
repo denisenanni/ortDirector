@@ -1,12 +1,13 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, Text } from 'react-native';
+import { Icon } from '@/components/Icon';
 import { DoneRow, TaskRow } from '@/components/TaskRow';
-import { Body, Button, Empty, Screen, SectionHeader } from '@/components/ui';
+import { Body, Empty, Group, IconButton, LargeHeader, Screen, SectionHeader, useTheme } from '@/components/ui';
 import { listDoneOn, listOpenTasks, markDone, rained, undoDone } from '@/lib/db';
 import { ensurePermission, syncReminders } from '@/lib/notifications';
-import { addDays, today as getToday } from '@/lib/schedule';
+import { addDays, daysBetween, fromDay, today as getToday } from '@/lib/schedule';
 import type { DoneEntry, TaskWithPlant } from '@/lib/types';
 
 export default function TodayScreen() {
@@ -15,6 +16,7 @@ export default function TodayScreen() {
   const [done, setDone] = useState<DoneEntry[]>([]);
   const [rainNote, setRainNote] = useState<string | null>(null);
   const today = getToday();
+  const t = useTheme();
 
   const load = useCallback(async () => {
     const [open, ticked] = await Promise.all([listOpenTasks(db), listDoneOn(db)]);
@@ -60,34 +62,75 @@ export default function TodayScreen() {
   const soon = tasks.filter((t) => t.dueOn > today && t.dueOn <= weekEnd);
   const later = tasks.filter((t) => t.dueOn > weekEnd);
 
+  const late = due.filter((task) => daysBetween(today, task.dueOn) < 0).length;
+  const summary =
+    due.length === 0
+      ? tasks.length > 0 || done.length > 0
+        ? 'Per oggi è tutto fatto.'
+        : null
+      : `${due.length === 1 ? '1 cosa da fare' : `${due.length} cose da fare`}` +
+        (late > 0 ? `, ${late === 1 ? '1 in ritardo' : `${late} in ritardo`}` : '');
+  const dateLine = fromDay(today).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
+
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+        <LargeHeader
+          eyebrow={dateLine}
+          title="Oggi"
+          subtitle={summary}
+          right={<IconButton icon="add" label="Nuova attività" filled onPress={() => router.push('/task/edit')} />}
+        />
+
+        {tasks.some((task) => task.type === 'water') && (
+          <Pressable
+            accessibilityRole="button"
+            onPress={onRain}
+            style={({ pressed }) => [
+              {
+                flexDirection: 'row',
+                alignItems: 'center',
+                alignSelf: 'flex-start',
+                gap: 8,
+                marginTop: 6,
+                paddingVertical: 9,
+                paddingHorizontal: 14,
+                borderRadius: 999,
+                backgroundColor: t.waterSoft,
+              },
+              pressed && { opacity: 0.6 },
+            ]}
+          >
+            <Icon name="rain" size={18} color={t.water} />
+            <Text style={{ color: t.water, fontSize: 15, fontWeight: '600' }}>Ha piovuto</Text>
+          </Pressable>
+        )}
+        {rainNote ? <Body muted style={{ marginTop: 8 }}>{rainNote}</Body> : null}
+
         {tasks.length === 0 && done.length === 0 ? (
           <Empty
             title="Niente da fare"
-            hint="Aggiungi una pianta con un intervallo di irrigazione, o crea un’attività."
+            hint="Aggiungi una pianta con un intervallo di irrigazione, o crea un’attività con il +."
           />
         ) : null}
 
-        {tasks.some((t) => t.type === 'water') && (
-          <Button kind="secondary" label="🌧️ Ha piovuto" onPress={onRain} />
+        {(due.length > 0 || done.length > 0) && (
+          <SectionHeader count={due.length > 0 ? due.length : undefined}>Da fare oggi</SectionHeader>
         )}
-        {rainNote ? <Body muted style={{ marginTop: 6, textAlign: 'center' }}>{rainNote}</Body> : null}
+        <Group>
+          {due.map((task) => <TaskRow key={task.id} task={task} today={today} onDone={onDone} />)}
+          {done.map((e) => <DoneRow key={`done-${e.id}`} entry={e} onUndo={onUndo} />)}
+        </Group>
 
-        {due.length > 0 && <SectionHeader>Da fare oggi</SectionHeader>}
-        {due.length === 0 && (tasks.length > 0 || done.length > 0) && <SectionHeader>Oggi è tutto fatto ✨</SectionHeader>}
-        {due.map((t) => <TaskRow key={t.id} task={t} today={today} onDone={onDone} />)}
-        {done.map((e) => <DoneRow key={`done-${e.id}`} entry={e} onUndo={onUndo} />)}
-
-        {soon.length > 0 && <SectionHeader>Prossimi 7 giorni</SectionHeader>}
-        {soon.map((t) => <TaskRow key={t.id} task={t} today={today} onDone={onDone} />)}
+        {soon.length > 0 && <SectionHeader count={soon.length}>Prossimi 7 giorni</SectionHeader>}
+        <Group>
+          {soon.map((task) => <TaskRow key={task.id} task={task} today={today} onDone={onDone} />)}
+        </Group>
 
         {later.length > 0 && <SectionHeader>Più avanti</SectionHeader>}
-        {later.map((t) => <TaskRow key={t.id} task={t} today={today} onDone={onDone} />)}
-
-        <View style={{ height: 12 }} />
-        <Button label="Nuova attività" onPress={() => router.push('/task/edit')} />
+        <Group>
+          {later.map((task) => <TaskRow key={task.id} task={task} today={today} onDone={onDone} />)}
+        </Group>
       </ScrollView>
     </Screen>
   );
