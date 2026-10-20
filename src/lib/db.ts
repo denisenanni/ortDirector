@@ -1,11 +1,12 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
+import { BACKUP_TABLES, insertFor, makeBackup, type Backup, type Row } from './backup';
 import { planFor, regularWateringFrom, seasonalTasks, transplantReminder, type PlannedTask } from './plans';
 import { presetFor } from './presets';
 import { afterRain, completeTask, today } from './schedule';
 import type { DayString, LogEntry, Plant, Stage, Sun, Task, TaskType, TaskWithPlant, Zone } from './types';
 
 export const DATABASE_NAME = 'ortdirector.db';
-const DATABASE_VERSION = 4;
+export const DATABASE_VERSION = 4;
 
 export async function migrate(db: SQLiteDatabase) {
   await db.execAsync('PRAGMA foreign_keys = ON;');
@@ -478,6 +479,42 @@ export async function saveZone(db: SQLiteDatabase, z: Omit<Zone, 'id'> & { id?: 
 /** Deletes the zone; its plants stay, without a zone. */
 export async function deleteZone(db: SQLiteDatabase, id: number) {
   await db.runAsync('DELETE FROM zones WHERE id = ?', id);
+}
+
+// --- Backup ----------------------------------------------------------------
+
+export async function exportBackup(db: SQLiteDatabase): Promise<Backup> {
+  const tables = {} as Backup['tables'];
+  for (const t of BACKUP_TABLES) tables[t] = await db.getAllAsync<Row>(`SELECT * FROM ${t}`);
+  return makeBackup(DATABASE_VERSION, tables);
+}
+
+/** Replaces every table with the backup's rows, all or nothing. */
+export async function importBackup(db: SQLiteDatabase, backup: Backup) {
+  await db.withTransactionAsync(async () => {
+    for (const t of [...BACKUP_TABLES].reverse()) await db.runAsync(`DELETE FROM ${t}`);
+    for (const t of BACKUP_TABLES) {
+      const info = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${t})`);
+      const columns = info.map((c) => c.name);
+      for (const row of backup.tables[t]) {
+        const insert = insertFor(t, row, columns);
+        if (insert) await db.runAsync(insert.sql, insert.values);
+      }
+    }
+  });
+}
+
+export async function getLastBackup(db: SQLiteDatabase): Promise<DayString | null> {
+  const row = await db.getFirstAsync<{ value: string }>(`SELECT value FROM settings WHERE key = 'last_backup'`);
+  return row?.value ?? null;
+}
+
+export async function setLastBackup(db: SQLiteDatabase, day: DayString) {
+  await db.runAsync(
+    `INSERT INTO settings (key, value) VALUES ('last_backup', ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    day,
+  );
 }
 
 // --- Settings --------------------------------------------------------------

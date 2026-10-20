@@ -22,6 +22,8 @@ React Native + Expo (SDK 57), TypeScript, dati solo sul telefono (SQLite), prome
   e se il sole della zona non va bene per la pianta (pomodoro in ombra, ortensia in pieno sole) compare un avviso.
 - **Pioggia e stagioni**: il pulsante "Ha piovuto" in Oggi conta come annaffiate tutte le piante tranne quelle nelle zone al coperto.
   Ogni pianta ha un intervallo di irrigazione da maggio a settembre e uno per il resto dell'anno.
+- **Backup**: in Impostazioni "Esporta backup" crea un file JSON con tutti i dati da salvare su iCloud Drive o dove vuoi;
+  "Importa backup" lo rimette al posto dei dati attuali, dopo una conferma.
 - **Oggi**: cosa scade oggi o è in ritardo, i prossimi 7 giorni, e più avanti. Tocca il cerchio per segnare fatto.
 - **Promemoria**: una sola notifica al giorno (ora configurabile, default 8:00) con l'elenco delle attività.
 - **Storico** per pianta.

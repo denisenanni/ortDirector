@@ -103,6 +103,15 @@ export function sunMismatch(need: Sun, spot: Sun): string | null {
   return null;
 }
 
+/** When something happened, for history: "Oggi", "Ieri", "3 giorni fa", or the date. */
+export function pastLabel(day: DayString, ref: DayString): string {
+  const ago = daysBetween(day, ref);
+  if (ago <= 0) return 'Oggi';
+  if (ago === 1) return 'Ieri';
+  if (ago < 7) return `${ago} giorni fa`;
+  return fromDay(day).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+}
+
 /**
  * What happens to a task when it is marked done on `doneOn`.
  * Repeating tasks roll forward from the completion day (water every 3 days

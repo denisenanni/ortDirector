@@ -8,7 +8,7 @@ import { getPlant, getZone, listPlantLog, listPlantTasks, markDone } from '@/lib
 import { syncReminders } from '@/lib/notifications';
 import { planFor } from '@/lib/plans';
 import { SUN_ICON, SUN_LABEL, TASK_ICON, presetFor } from '@/lib/presets';
-import { daysBetween, fromDay, relativeLabel, sunMismatch, today as getToday } from '@/lib/schedule';
+import { daysBetween, fromDay, pastLabel, sunMismatch, today as getToday } from '@/lib/schedule';
 import type { LogEntry, Plant, TaskWithPlant, Zone } from '@/lib/types';
 
 export default function PlantScreen() {
@@ -122,7 +122,7 @@ export default function PlantScreen() {
         {log.length > 0 && <SectionHeader>Storico</SectionHeader>}
         {log.map((e) => (
           <Body key={e.id} muted>
-            {TASK_ICON[e.type]} {e.title} · {relativeLabel(e.doneOn, today)}
+            {TASK_ICON[e.type]} {e.title} · {pastLabel(e.doneOn, today)}
           </Body>
         ))}
 
