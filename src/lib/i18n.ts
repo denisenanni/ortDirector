@@ -1,8 +1,9 @@
-// Two languages, Italian and English, chosen from the phone's language at
-// start-up (src/lib/locale.ts). Strings stay inline as tr('italiano', 'English')
+// Two languages, Italian and English: the phone's, or the one picked in
+// Impostazioni (src/lib/locale.ts). Strings stay inline as tr('italiano', 'English')
 // so each screen reads in both languages at once. Catalog text (plant names,
 // tips, plan steps) is written in Italian and translated through CATALOG_EN.
 // Pure logic, no React Native imports, so it runs under `node --test`.
+import { useSyncExternalStore } from 'react';
 import { CATALOG_EN } from './catalog-en.ts';
 
 export type Lang = 'it' | 'en';
@@ -10,13 +11,27 @@ export type Lang = 'it' | 'en';
 let current: Lang = 'it';
 let dateLocale = 'it-IT';
 
+const listeners = new Set<(lang: Lang) => void>();
+
 export function setLanguage(lang: Lang, locale?: string) {
   current = lang;
   dateLocale = locale ?? (lang === 'it' ? 'it-IT' : 'en-GB');
+  listeners.forEach((l) => l(lang));
+}
+
+/** Calls `listener` on every language change; returns the unsubscribe. */
+export function onLanguageChange(listener: (lang: Lang) => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
 }
 
 export function language(): Lang {
   return current;
+}
+
+/** The current language, redrawing the component when it changes. */
+export function useLanguage(): Lang {
+  return useSyncExternalStore(onLanguageChange, language);
 }
 
 /** Locale tag for toLocaleDateString. */
