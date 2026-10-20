@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { TASK_ICON } from '@/lib/presets';
-import { daysBetween, relativeLabel } from '@/lib/schedule';
+import { daysBetween, fromDay, relativeLabel } from '@/lib/schedule';
 import type { TaskWithPlant } from '@/lib/types';
 import { useTheme } from './ui';
 
@@ -23,7 +23,7 @@ export function TaskRow({
       <Pressable
         accessibilityRole="checkbox"
         accessibilityLabel={`Segna come fatto: ${task.title}`}
-        onPress={() => onDone(task)}
+        onPress={() => (task.type === 'transplant' ? openTransplant(task) : onDone(task))}
         hitSlop={10}
         style={[styles.check, { borderColor: t.accent }]}
       />
@@ -38,10 +38,20 @@ export function TaskRow({
         <Text style={{ color: overdue ? t.warn : t.muted, fontSize: 14, marginTop: 2 }}>
           {relativeLabel(task.dueOn, today)}
           {task.repeatDays ? ` · ogni ${task.repeatDays === 1 ? 'giorno' : `${task.repeatDays} giorni`}` : ''}
+          {task.repeatDays && task.endsOn
+            ? ` fino al ${fromDay(task.endsOn).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}`
+            : ''}
         </Text>
       </Pressable>
     </View>
   );
+}
+
+/** A transplant reminder is done by marking the transplant, which starts the plan. */
+export function openTransplant(task: Pick<TaskWithPlant, 'plantId'>) {
+  if (task.plantId !== null) {
+    router.push({ pathname: '/plant/transplant', params: { id: String(task.plantId) } });
+  }
 }
 
 const styles = StyleSheet.create({

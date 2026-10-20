@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { openTransplant } from '@/components/TaskRow';
 import { Body, Button, Chip, ChipRow, Field, Input, Screen, Stepper } from '@/components/ui';
 import {
   createTask,
@@ -15,7 +16,7 @@ import {
 } from '@/lib/db';
 import { syncReminders } from '@/lib/notifications';
 import { TASK_ICON, TASK_LABEL, TASK_TYPES } from '@/lib/presets';
-import { addDays, daysBetween, relativeLabel, today as getToday } from '@/lib/schedule';
+import { addDays, daysBetween, fromDay, relativeLabel, today as getToday } from '@/lib/schedule';
 import type { Plant, Task, TaskType } from '@/lib/types';
 
 export default function EditTaskScreen() {
@@ -32,6 +33,7 @@ export default function EditTaskScreen() {
     title: TASK_LABEL.check,
     dueOn: today,
     repeatDays: null,
+    endsOn: null,
     notes: null,
   });
   // Track whether the user typed a custom title, so switching type doesn't clobber it.
@@ -43,7 +45,7 @@ export default function EditTaskScreen() {
       getTask(db, editingId).then((t) => {
         if (!t) return;
         setExisting(t);
-        setForm({ plantId: t.plantId, type: t.type, title: t.title, dueOn: t.dueOn, repeatDays: t.repeatDays, notes: t.notes });
+        setForm({ plantId: t.plantId, type: t.type, title: t.title, dueOn: t.dueOn, repeatDays: t.repeatDays, endsOn: t.endsOn, notes: t.notes });
         setCustomTitle(t.title !== TASK_LABEL[t.type]);
       });
     }
@@ -75,13 +77,17 @@ export default function EditTaskScreen() {
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
           {existing && (
             <>
-              <Button
-                label="✓ Fatto oggi"
-                onPress={async () => {
-                  await markDone(db, existing);
-                  finish();
-                }}
-              />
+              {existing.type === 'transplant' ? (
+                <Button label="🌱 Segna il trapianto" onPress={() => openTransplant(existing)} />
+              ) : (
+                <Button
+                  label="✓ Fatto oggi"
+                  onPress={async () => {
+                    await markDone(db, existing);
+                    finish();
+                  }}
+                />
+              )}
               <Button
                 kind="secondary"
                 label="Rimanda a domani"
@@ -147,6 +153,14 @@ export default function EditTaskScreen() {
               allowOff="Una volta sola"
               format={(v) => (v === 1 ? 'Ogni giorno' : `Ogni ${v} giorni`)}
             />
+            {form.repeatDays && form.endsOn ? (
+              <>
+                <Body muted style={{ marginTop: 8 }}>
+                  Fino al {fromDay(form.endsOn).toLocaleDateString('it-IT', { day: 'numeric', month: 'long' })}
+                </Body>
+                <Button kind="secondary" label="Ripeti senza scadenza" onPress={() => set('endsOn', null)} />
+              </>
+            ) : null}
           </Field>
 
           <Field label="Note">

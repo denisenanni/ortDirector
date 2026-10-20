@@ -10,6 +10,11 @@ React Native + Expo (SDK 57), TypeScript, dati solo sul telefono (SQLite), prome
 - **Attività**: annaffiare, controllo, potatura, concimazione, trattamento, raccolta, altro.
   Una volta o ripetute ogni N giorni. Le ripetute ripartono dal giorno in cui le segni fatte.
   Ogni pianta con un intervallo di irrigazione ha la sua attività "Annaffiare" automatica.
+- **Semenzaio e trapianto**: una pianta nasce *seminata*, *piantina da trapiantare* o *già a dimora*.
+  Per le piante del catalogo arriva il promemoria "Pronta da trapiantare" dopo le settimane tipiche dalla semina.
+  Segnando il trapianto (data di default oggi) l'app crea le attività del piano della pianta, contate da quel giorno:
+  per il pomodoro irrigazione fitta le prime 2 settimane, tutore a +7, concimazione da +15, femminelle ogni settimana, raccolta da +70.
+  Le attività del piano si possono togliere prima di confermare e modificare una per una dopo. I piani sono in `src/lib/plans.ts`.
 - **Oggi**: cosa scade oggi o è in ritardo, i prossimi 7 giorni, e più avanti. Tocca il cerchio per segnare fatto.
 - **Promemoria**: una sola notifica al giorno (ora configurabile, default 8:00) con l'elenco delle attività.
 - **Storico** per pianta.
@@ -36,7 +41,7 @@ Il progetto resta su SDK 57 perché è l’ultima che Expo Go dell’App Store s
 
 ```sh
 yarn typecheck         # tsc
-yarn test              # test della logica di date e promemoria (node --test)
+yarn test              # test della logica di date, promemoria e piani (node --test)
 yarn web               # anteprima nel browser
 ```
 
@@ -47,6 +52,7 @@ Struttura:
 - `src/lib/schedule.ts` logica pura di date e promemoria, testata in `schedule.test.ts`.
 - `src/lib/notifications.ts` permessi e sincronizzazione delle notifiche.
 - `src/lib/presets.ts` piante comuni ed etichette.
+- `src/lib/plans.ts` piani di cura dal trapianto per le piante comuni, testati in `plans.test.ts`.
 
 ## Prossimi passi possibili
 

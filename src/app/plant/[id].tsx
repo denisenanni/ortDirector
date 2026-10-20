@@ -6,8 +6,9 @@ import { TaskRow } from '@/components/TaskRow';
 import { Body, Button, Card, Screen, SectionHeader, Title } from '@/components/ui';
 import { getPlant, listPlantLog, listPlantTasks, markDone } from '@/lib/db';
 import { syncReminders } from '@/lib/notifications';
-import { PLANT_PRESETS, SUN_ICON, SUN_LABEL, TASK_ICON } from '@/lib/presets';
-import { fromDay, relativeLabel, today as getToday } from '@/lib/schedule';
+import { planFor } from '@/lib/plans';
+import { SUN_ICON, SUN_LABEL, TASK_ICON, presetFor } from '@/lib/presets';
+import { daysBetween, fromDay, relativeLabel, today as getToday } from '@/lib/schedule';
 import type { LogEntry, Plant, TaskWithPlant } from '@/lib/types';
 
 export default function PlantScreen() {
@@ -48,7 +49,10 @@ export default function PlantScreen() {
 
   if (!plant) return <Screen>{null}</Screen>;
 
-  const tip = PLANT_PRESETS.find((p) => p.name.toLowerCase() === plant.name.toLowerCase())?.tip;
+  const preset = presetFor(plant);
+  const tip = preset?.tip;
+  const weeks = planFor(preset?.name)?.sowToTransplantWeeks;
+  const longDate = (day: string) => fromDay(day).toLocaleDateString('it-IT');
 
   return (
     <Screen>
@@ -66,12 +70,26 @@ export default function PlantScreen() {
               : 'Nessuna irrigazione programmata'}
           </Body>
           {plant.location ? <Body>📍 {plant.location}</Body> : null}
-          {plant.plantedOn ? (
-            <Body>🌱 Piantata il {fromDay(plant.plantedOn).toLocaleDateString('it-IT')}</Body>
+          {plant.stage === 'seedbed' && plant.sownOn ? (
+            <Body>
+              🌰 Seminata il {longDate(plant.sownOn)}, {Math.floor(daysBetween(plant.sownOn, today) / 7)} settimane fa.
+              {weeks ? ` Si trapianta a ${weeks[0]}-${weeks[1]} settimane.` : ''}
+            </Body>
+          ) : null}
+          {plant.stage === 'seedbed' && !plant.sownOn ? <Body>🪴 In vaso, da trapiantare</Body> : null}
+          {plant.stage === 'ground' && plant.plantedOn ? (
+            <Body>🌳 A dimora dal {longDate(plant.plantedOn)}</Body>
           ) : null}
           {plant.notes ? <Body muted style={{ marginTop: 8 }}>{plant.notes}</Body> : null}
           {tip ? <Body muted style={{ marginTop: 8 }}>💡 {tip}</Body> : null}
         </Card>
+
+        {plant.stage === 'seedbed' && (
+          <Button
+            label="🌱 Segna il trapianto"
+            onPress={() => router.push({ pathname: '/plant/transplant', params: { id: String(plant.id) } })}
+          />
+        )}
 
         <SectionHeader>Attività</SectionHeader>
         {tasks.length === 0 && <Body muted>Nessuna attività aperta.</Body>}

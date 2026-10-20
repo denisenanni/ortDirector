@@ -56,6 +56,7 @@ export const TASK_LABEL: Record<TaskType, string> = {
   fertilize: 'Concimazione',
   treat: 'Trattamento',
   harvest: 'Raccolta',
+  transplant: 'Trapianto',
   other: 'Altro',
 };
 
@@ -66,7 +67,15 @@ export const TASK_ICON: Record<TaskType, string> = {
   fertilize: '🧪',
   treat: '🐛',
   harvest: '🧺',
+  transplant: '🌱',
   other: '📝',
 };
 
-export const TASK_TYPES = Object.keys(TASK_LABEL) as TaskType[];
+/** Types a user can pick by hand. Transplant tasks are created by the app. */
+export const TASK_TYPES = (Object.keys(TASK_LABEL) as TaskType[]).filter((t) => t !== 'transplant');
+
+/** The catalog entry for a plant: the one it was created from, else a name match. */
+export function presetFor(plant: { preset: string | null; name: string }): PlantPreset | undefined {
+  const key = (plant.preset ?? plant.name).toLowerCase();
+  return PLANT_PRESETS.find((p) => p.name.toLowerCase() === key);
+}

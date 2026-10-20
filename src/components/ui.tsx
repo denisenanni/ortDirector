@@ -9,6 +9,7 @@ import {
   type TextInputProps,
   type ViewStyle,
 } from 'react-native';
+import { addDays, daysBetween, fromDay } from '@/lib/schedule';
 
 const light = {
   bg: '#F4F6EF',
@@ -183,6 +184,78 @@ export function Stepper({
   );
 }
 
+/** Picks today or a day in the past, as "N days ago". */
+export function PastDayPicker({
+  value,
+  onChange,
+  today,
+}: {
+  value: string;
+  onChange: (day: string) => void;
+  today: string;
+}) {
+  const ago = Math.max(0, daysBetween(value, today));
+  return (
+    <>
+      <ChipRow>
+        {[0, 1, 7, 14, 30].map((d) => (
+          <Chip
+            key={d}
+            label={d === 0 ? 'Oggi' : d === 1 ? 'Ieri' : `${d} giorni fa`}
+            selected={ago === d}
+            onPress={() => onChange(addDays(today, -d))}
+          />
+        ))}
+      </ChipRow>
+      <View style={{ height: 8 }} />
+      <Stepper
+        value={ago}
+        onChange={(v) => onChange(addDays(today, -(v ?? 0)))}
+        min={0}
+        max={365}
+        format={(v) =>
+          (v === 0 ? 'Oggi' : v === 1 ? 'Ieri' : `${v} giorni fa`) +
+          ` · ${fromDay(addDays(today, -v)).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}`
+        }
+      />
+    </>
+  );
+}
+
+/** A full-width row that can be switched on and off, with a detail line. */
+export function ToggleRow({
+  label,
+  detail,
+  on,
+  disabled,
+  onPress,
+}: {
+  label: string;
+  detail: string;
+  on: boolean;
+  disabled?: boolean;
+  onPress: () => void;
+}) {
+  const t = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: on, disabled }}
+      onPress={onPress}
+      disabled={disabled}
+      style={[styles.toggleRow, { backgroundColor: t.card, borderColor: on ? t.accent : t.border }, disabled && { opacity: 0.5 }]}
+    >
+      <View style={[styles.toggleBox, { borderColor: t.accent, backgroundColor: on ? t.accent : 'transparent' }]}>
+        {on ? <Text style={{ color: t.accentText, fontSize: 14, fontWeight: '700' }}>✓</Text> : null}
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.body, { color: t.text }]}>{label}</Text>
+        <Text style={{ color: t.muted, fontSize: 14, marginTop: 2 }}>{detail}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
 export function Empty({ title, hint }: { title: string; hint: string }) {
   return (
     <View style={{ padding: 32, alignItems: 'center' }}>
@@ -218,6 +291,17 @@ const styles = StyleSheet.create({
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   label: { fontSize: 13, fontWeight: '600', marginBottom: 6 },
   input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 16 },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  toggleBox: { width: 24, height: 24, borderRadius: 6, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   stepper: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 10 },
   stepBtn: { paddingHorizontal: 18, paddingVertical: 8 },
   stepSign: { fontSize: 24, fontWeight: '500' },
