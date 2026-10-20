@@ -50,6 +50,18 @@ export default function PlantsScreen() {
     );
   };
 
+  // Zones with plants first, empty ones after the plants.
+  const planted = zones.filter((z) => plants.some((p) => p.zoneId === z.id));
+  const empty = zones.filter((z) => !planted.includes(z));
+  const zoneHeader = (z: Zone) => (
+    <Pressable onPress={() => router.push({ pathname: '/zone/edit', params: { id: String(z.id) } })}>
+      <SectionHeader>
+        {SUN_ICON[z.sun]} {z.name}
+        {z.covered ? ' · al coperto' : ''} ›
+      </SectionHeader>
+    </Pressable>
+  );
+
   const noZone = plants.filter((p) => p.zoneId === null || !zones.some((z) => z.id === p.zoneId));
 
   return (
@@ -58,23 +70,20 @@ export default function PlantsScreen() {
         {data.plants.length === 0 && zones.length === 0 && (
           <Empty title="Nessuna pianta" hint="Aggiungi la prima pianta del tuo orto o giardino." />
         )}
-        {zones.map((z) => {
-          const inZone = plants.filter((p) => p.zoneId === z.id);
-          return (
-            <View key={z.id}>
-              <Pressable onPress={() => router.push({ pathname: '/zone/edit', params: { id: String(z.id) } })}>
-                <SectionHeader>
-                  {SUN_ICON[z.sun]} {z.name}
-                  {z.covered ? ' · al coperto' : ''} ›
-                </SectionHeader>
-              </Pressable>
-              {inZone.length === 0 && <Body muted>Nessuna pianta in questa zona.</Body>}
-              {inZone.map((p) => card(p, z))}
-            </View>
-          );
-        })}
+        {planted.map((z) => (
+          <View key={z.id}>
+            {zoneHeader(z)}
+            {plants.filter((p) => p.zoneId === z.id).map((p) => card(p, z))}
+          </View>
+        ))}
         {noZone.length > 0 && zones.length > 0 && <SectionHeader>Senza zona</SectionHeader>}
         {noZone.map((p) => card(p))}
+        {empty.map((z) => (
+          <View key={z.id}>
+            {zoneHeader(z)}
+            <Body muted>Nessuna pianta in questa zona.</Body>
+          </View>
+        ))}
         {archived.length > 0 && <SectionHeader>🗄️ Archivio</SectionHeader>}
         {archived.map((p) => card(p))}
         <Button label="Aggiungi pianta" onPress={() => router.push('/plant/edit')} />
