@@ -24,15 +24,18 @@ export function TaskRow({
   today,
   onDone,
   showPlant = true,
+  showZone = true,
 }: {
   task: TaskWithPlant;
   today: string;
   onDone: (t: TaskWithPlant) => void;
   showPlant?: boolean;
+  /** Off where rows are already grouped under their zone. */
+  showZone?: boolean;
 }) {
   const t = useTheme();
   const overdue = daysBetween(today, task.dueOn) < 0;
-  const where = showPlant ? [task.plantName, task.zoneName].filter(Boolean).join(' · ') : '';
+  const where = showPlant ? [plantLabel(task), showZone && task.zoneName].filter(Boolean).join(' · ') : '';
   // Only the interval in force now; the task screen shows both seasons.
   const repeat = repeatLabel({ ...task, repeatDays: intervalOn(task, today), coldRepeatDays: null });
   const until =
@@ -68,10 +71,18 @@ export function TaskRow({
 }
 
 /** Something ticked today: stays in Oggi, checked; tapping the tick undoes it. */
-export function DoneRow({ entry, onUndo }: { entry: DoneEntry; onUndo: (e: DoneEntry) => void }) {
+export function DoneRow({
+  entry,
+  onUndo,
+  showZone = true,
+}: {
+  entry: DoneEntry;
+  onUndo: (e: DoneEntry) => void;
+  showZone?: boolean;
+}) {
   const t = useTheme();
   const undoable = entry.taskId !== null;
-  const where = [entry.plantName, entry.zoneName].filter(Boolean).join(' · ');
+  const where = [plantLabel(entry), showZone && entry.zoneName].filter(Boolean).join(' · ');
   return (
     <View style={styles.row}>
       <View style={[styles.main, { opacity: 0.55 }]}>
@@ -95,6 +106,12 @@ export function DoneRow({ entry, onUndo }: { entry: DoneEntry; onUndo: (e: DoneE
       </Pressable>
     </View>
   );
+}
+
+/** "Menta (piperita)": the variety tells apart plants of the same kind. */
+function plantLabel(p: { plantName: string | null; plantVariety: string | null }): string | null {
+  if (!p.plantName) return null;
+  return p.plantVariety ? `${p.plantName} (${p.plantVariety})` : p.plantName;
 }
 
 /** A transplant reminder is done by marking the transplant, which starts the plan. */
