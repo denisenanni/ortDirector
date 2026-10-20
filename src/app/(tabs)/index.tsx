@@ -72,6 +72,16 @@ export default function TodayScreen() {
   const due = tasks.filter((t) => t.dueOn <= today);
   const soon = tasks.filter((t) => t.dueOn > today && t.dueOn <= weekEnd);
   const later = tasks.filter((t) => t.dueOn > weekEnd);
+  // Today's tasks, open and done, grouped by zone: zones by name, no zone last.
+  const zoneNames = [...new Set([...due, ...done].map((x) => x.zoneName))].sort((a, b) =>
+    a === null ? 1 : b === null ? -1 : a.localeCompare(b),
+  );
+  const todayByZone = zoneNames.map((zone) => ({
+    zone,
+    open: due.filter((x) => x.zoneName === zone),
+    ticked: done.filter((x) => x.zoneName === zone),
+  }));
+  const zones = zoneNames.length;
 
   const late = due.filter((task) => daysBetween(today, task.dueOn) < 0).length;
   const summary =
@@ -162,10 +172,20 @@ export default function TodayScreen() {
         {(due.length > 0 || done.length > 0) && (
           <SectionHeader count={due.length > 0 ? due.length : undefined}>{tr('Da fare oggi', 'To do today')}</SectionHeader>
         )}
-        <Group>
-          {due.map((task) => <TaskRow key={task.id} task={task} today={today} onDone={onDone} />)}
-          {done.map((e) => <DoneRow key={`done-${e.id}`} entry={e} onUndo={onUndo} />)}
-        </Group>
+        {todayByZone.map(({ zone, open, ticked }) => (
+          <View key={zone ?? ''}>
+            {zones > 1 || zone !== null ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, marginBottom: 6 }}>
+                <Icon name="place" size={14} color={t.muted} />
+                <Text style={{ color: t.muted, fontSize: 14, fontWeight: '600' }}>{zone ?? tr('Senza zona', 'No zone')}</Text>
+              </View>
+            ) : null}
+            <Group>
+              {open.map((task) => <TaskRow key={task.id} task={task} today={today} onDone={onDone} showZone={false} />)}
+              {ticked.map((e) => <DoneRow key={`done-${e.id}`} entry={e} onUndo={onUndo} showZone={false} />)}
+            </Group>
+          </View>
+        ))}
 
         {soon.length > 0 && <SectionHeader count={soon.length}>{tr('Prossimi 7 giorni', 'Next 7 days')}</SectionHeader>}
         <Group>

@@ -79,6 +79,7 @@ export interface Task {
 /** A task joined with the name of its plant, for lists. */
 export interface TaskWithPlant extends Task {
   plantName: string | null;
+  plantVariety: string | null;
   zoneName: string | null;
 }
 
@@ -96,5 +97,6 @@ export interface DoneEntry extends LogEntry {
   /** The day the task was due before it was ticked; null for ticks from before v5. */
   prevDueOn: DayString | null;
   plantName: string | null;
+  plantVariety: string | null;
   zoneName: string | null;
 }

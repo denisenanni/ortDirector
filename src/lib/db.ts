@@ -174,6 +174,7 @@ interface TaskRow {
   done_on: string | null;
   notes: string | null;
   plant_name?: string | null;
+  plant_variety?: string | null;
   zone_name?: string | null;
 }
 
@@ -211,11 +212,12 @@ const toTask = (r: TaskRow): TaskWithPlant => ({
   doneOn: r.done_on,
   notes: r.notes,
   plantName: r.plant_name === null || r.plant_name === undefined ? null : local(r.plant_name),
+  plantVariety: r.plant_variety ?? null,
   zoneName: r.zone_name ?? null,
 });
 
 const TASK_SELECT = `
-  SELECT t.*, p.name AS plant_name, z.name AS zone_name
+  SELECT t.*, p.name AS plant_name, p.variety AS plant_variety, z.name AS zone_name
   FROM tasks t LEFT JOIN plants p ON p.id = t.plant_id
   LEFT JOIN zones z ON z.id = p.zone_id`;
 
@@ -464,7 +466,7 @@ export async function markDone(db: SQLiteDatabase, task: Task, doneOn: DayString
 export async function listDoneOn(db: SQLiteDatabase, day: DayString = today()): Promise<DoneEntry[]> {
   const rows = await db.getAllAsync<DoneEntry>(
     `SELECT l.id, l.task_id AS taskId, l.plant_id AS plantId, l.type, l.title, l.done_on AS doneOn,
-       l.prev_due_on AS prevDueOn, p.name AS plantName, z.name AS zoneName
+       l.prev_due_on AS prevDueOn, p.name AS plantName, p.variety AS plantVariety, z.name AS zoneName
      FROM task_log l LEFT JOIN plants p ON p.id = l.plant_id LEFT JOIN zones z ON z.id = p.zone_id
      WHERE l.done_on = ? ORDER BY l.id`,
     day,

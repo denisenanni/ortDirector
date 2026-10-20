@@ -30,6 +30,7 @@ function task(over: Partial<TaskWithPlant>): TaskWithPlant {
     doneOn: null,
     notes: null,
     plantName: null,
+    plantVariety: null,
     zoneName: null,
     ...over,
   };
