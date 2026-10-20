@@ -108,6 +108,8 @@ export default function EditPlantScreen() {
       waterEveryDays: preset.waterEveryDays,
       waterColdDays: coldWateringDefault(preset.waterEveryDays),
     }));
+    // The search box shows what was picked, like an autocomplete.
+    setQuery(cat(preset.name));
     setTip(cat(preset.tip));
   };
 
