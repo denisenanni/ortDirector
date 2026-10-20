@@ -3,8 +3,8 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { TaskRow } from '@/components/TaskRow';
-import { Button, Empty, Screen, SectionHeader } from '@/components/ui';
-import { listOpenTasks, markDone } from '@/lib/db';
+import { Body, Button, Empty, Screen, SectionHeader } from '@/components/ui';
+import { listOpenTasks, markDone, rained } from '@/lib/db';
 import { ensurePermission, syncReminders } from '@/lib/notifications';
 import { addDays, today as getToday } from '@/lib/schedule';
 import type { TaskWithPlant } from '@/lib/types';
@@ -12,6 +12,7 @@ import type { TaskWithPlant } from '@/lib/types';
 export default function TodayScreen() {
   const db = useSQLiteContext();
   const [tasks, setTasks] = useState<TaskWithPlant[] | null>(null);
+  const [rainNote, setRainNote] = useState<string | null>(null);
   const today = getToday();
 
   const load = useCallback(async () => {
@@ -32,6 +33,17 @@ export default function TodayScreen() {
     syncReminders(db);
   };
 
+  const onRain = async () => {
+    const moved = await rained(db);
+    setRainNote(
+      moved === 0
+        ? 'Nessuna annaffiatura da spostare.'
+        : `Spostate ${moved === 1 ? '1 annaffiatura' : `${moved} annaffiature`}, tranne le zone al coperto.`,
+    );
+    await load();
+    syncReminders(db);
+  };
+
   if (!tasks) return <Screen>{null}</Screen>;
 
   const weekEnd = addDays(today, 7);
@@ -48,6 +60,11 @@ export default function TodayScreen() {
             hint="Aggiungi una pianta con un intervallo di irrigazione, o crea un’attività."
           />
         ) : null}
+
+        {tasks.some((t) => t.type === 'water') && (
+          <Button kind="secondary" label="🌧️ Ha piovuto" onPress={onRain} />
+        )}
+        {rainNote ? <Body muted style={{ marginTop: 6, textAlign: 'center' }}>{rainNote}</Body> : null}
 
         {due.length > 0 && <SectionHeader>Da fare oggi</SectionHeader>}
         {due.map((t) => <TaskRow key={t.id} task={t} today={today} onDone={onDone} />)}

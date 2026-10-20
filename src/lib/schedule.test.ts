@@ -3,6 +3,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   addDays,
+  afterRain,
+  sunMismatch,
   nextInSeason,
   buildReminders,
   completeTask,
@@ -23,6 +25,7 @@ function task(over: Partial<TaskWithPlant>): TaskWithPlant {
     endsOn: null,
     yearly: false,
     months: null,
+    coldRepeatDays: null,
     doneOn: null,
     notes: null,
     plantName: null,
@@ -102,6 +105,29 @@ test('monthsLabel groups runs, across New Year too', () => {
   assert.equal(monthsLabel([2]), 'feb');
   assert.equal(monthsLabel([11, 12, 1, 3]), 'mar, nov–gen');
   assert.equal(monthsLabel([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]), 'tutto l’anno');
+});
+
+test('watering follows the cold interval outside May to September', () => {
+  const water = { repeatDays: 2, coldRepeatDays: 7 };
+  assert.equal(completeTask(water, '2026-07-10').dueOn, '2026-07-12');
+  assert.equal(completeTask(water, '2026-10-20').dueOn, '2026-10-27');
+  assert.equal(completeTask({ repeatDays: 2, coldRepeatDays: null }, '2026-10-20').dueOn, '2026-10-22');
+});
+
+test('afterRain counts as watered today and never moves a task earlier', () => {
+  assert.equal(afterRain({ dueOn: '2026-07-10', repeatDays: 2 }, '2026-07-10'), '2026-07-12');
+  assert.equal(afterRain({ dueOn: '2026-07-08', repeatDays: 2 }, '2026-07-10'), '2026-07-12'); // overdue
+  assert.equal(afterRain({ dueOn: '2026-07-20', repeatDays: 2 }, '2026-07-10'), '2026-07-20');
+  assert.equal(afterRain({ dueOn: '2026-10-20', repeatDays: 2, coldRepeatDays: 7 }, '2026-10-20'), '2026-10-27');
+});
+
+test('sunMismatch flags sun lovers in the shade and shade plants in full sun', () => {
+  assert.ok(sunMismatch('full', 'partial'));
+  assert.ok(sunMismatch('full', 'shade'));
+  assert.ok(sunMismatch('shade', 'full'));
+  assert.equal(sunMismatch('partial', 'full'), null);
+  assert.equal(sunMismatch('shade', 'partial'), null);
+  assert.equal(sunMismatch('full', 'full'), null);
 });
 
 test('buildReminders groups by day, folds overdue into today, skips done and past', () => {

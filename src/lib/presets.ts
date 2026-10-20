@@ -109,11 +109,18 @@ export function monthsLabel(months: number[]): string {
 }
 
 /** "ogni 21 giorni, apr–set fino al 3 nov", for a task's repeat rule. Empty for one-off tasks. */
-export function repeatLabel(t: { repeatDays: number | null; yearly: boolean; months: number[] | null }): string {
+export function repeatLabel(t: {
+  repeatDays: number | null;
+  yearly: boolean;
+  months: number[] | null;
+  coldRepeatDays?: number | null;
+}): string {
   const season = t.months?.length ? monthsLabel(t.months) : '';
   if (t.yearly) return season ? `ogni anno, ${season}` : 'ogni anno';
   if (!t.repeatDays) return '';
-  const every = `ogni ${t.repeatDays === 1 ? 'giorno' : `${t.repeatDays} giorni`}`;
+  const days = (n: number) => (n === 1 ? 'giorno' : `${n} giorni`);
+  let every = `ogni ${days(t.repeatDays)}`;
+  if (t.coldRepeatDays && t.coldRepeatDays !== t.repeatDays) every += ` (ott–apr ogni ${days(t.coldRepeatDays)})`;
   return season ? `${every}, ${season}` : every;
 }
 
