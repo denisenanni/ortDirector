@@ -1,9 +1,9 @@
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 import { Alert, Linking, Platform, ScrollView } from 'react-native';
 import * as Notifications from 'expo-notifications';
-import { Body, Button, Card, Field, LargeHeader, Screen, SectionHeader, Stepper, useTheme } from '@/components/ui';
+import { Body, Button, Card, Chip, ChipRow, Field, LargeHeader, Screen, SectionHeader, Stepper, useTheme } from '@/components/ui';
 import { parseBackup } from '@/lib/backup';
 import { pickBackupFile, saveBackupFile } from '@/lib/backupFile';
 import {
@@ -18,6 +18,7 @@ import {
 import { fromDay, today } from '@/lib/schedule';
 import { ensurePermission, syncReminders } from '@/lib/notifications';
 import { locale, tr } from '@/lib/i18n';
+import { chooseLanguage, languageChoice, type LanguageChoice } from '@/lib/locale';
 
 export default function SettingsScreen() {
   const db = useSQLiteContext();
@@ -26,6 +27,16 @@ export default function SettingsScreen() {
   const [lastBackup, setLast] = useState<string | null>(null);
   const [backupNote, setBackupNote] = useState<{ text: string; error?: boolean } | null>(null);
   const t = useTheme();
+  const [choice, setChoice] = useState(languageChoice);
+
+  const changeLanguage = (c: LanguageChoice) => {
+    if (c === choice) return;
+    setChoice(c);
+    // Every screen is redrawn in the new language; come back here.
+    chooseLanguage(c);
+    setTimeout(() => router.navigate('/settings'), 0);
+    syncReminders(db);
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -106,6 +117,19 @@ export default function SettingsScreen() {
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
         <LargeHeader title={tr('Impostazioni', 'Settings')} />
+        <SectionHeader>{tr('Lingua', 'Language')}</SectionHeader>
+        <Card>
+          <ChipRow>
+            {(['system', 'it', 'en'] as LanguageChoice[]).map((c) => (
+              <Chip
+                key={c}
+                label={c === 'system' ? tr('Come il telefono', 'Same as phone') : c === 'it' ? 'Italiano' : 'English'}
+                selected={choice === c}
+                onPress={() => changeLanguage(c)}
+              />
+            ))}
+          </ChipRow>
+        </Card>
         <SectionHeader>{tr('Promemoria', 'Reminders')}</SectionHeader>
         <Card>
           <Field label={tr('Ora del promemoria giornaliero', 'Daily reminder time')}>

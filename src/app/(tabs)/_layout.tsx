@@ -2,7 +2,7 @@ import { Tabs } from 'expo-router/tabs';
 import type { ColorValue } from 'react-native';
 import { Icon, type IconName } from '@/components/Icon';
 import { useTheme } from '@/components/ui';
-import { tr } from '@/lib/i18n';
+import { tr, useLanguage } from '@/lib/i18n';
 
 const icon =
   (name: IconName) =>
@@ -10,6 +10,7 @@ const icon =
 
 export default function TabsLayout() {
   const t = useTheme();
+  useLanguage();
   return (
     <Tabs
       screenOptions={{

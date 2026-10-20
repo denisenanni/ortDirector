@@ -1,4 +1,4 @@
-// First, so every module below sees the phone's language.
+// First, so every module below sees the chosen language.
 import '@/lib/locale';
 import { Fraunces_600SemiBold, useFonts } from '@expo-google-fonts/fraunces';
 import { Stack } from 'expo-router';
@@ -6,17 +6,20 @@ import { SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { useTheme } from '@/components/ui';
 import { DATABASE_NAME, migrate } from '@/lib/db';
-import { tr } from '@/lib/i18n';
+import { tr, useLanguage } from '@/lib/i18n';
 import '@/lib/notifications';
 
 export default function RootLayout() {
   const t = useTheme();
   const [fontsLoaded] = useFonts({ Fraunces_600SemiBold });
+  // Changing language in Impostazioni redraws every screen from scratch.
+  const lang = useLanguage();
   if (!fontsLoaded) return null;
   return (
     <SQLiteProvider databaseName={DATABASE_NAME} onInit={migrate}>
       <StatusBar style="auto" />
       <Stack
+        key={lang}
         screenOptions={{
           headerStyle: { backgroundColor: t.bg },
           headerTintColor: t.accent,
