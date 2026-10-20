@@ -1,4 +1,5 @@
 import { cat, days, language, tr } from './i18n.ts';
+import { CATALOG_EN } from './catalog-en.ts';
 import type { Sun, TaskType } from './types';
 
 export interface PlantPreset {
@@ -152,6 +153,50 @@ export function isAnnual(presetName: string | undefined): boolean {
 
 /** Types a user can pick by hand. Transplant tasks are created by the app. */
 export const TASK_TYPES = (Object.keys(TASK_LABEL) as TaskType[]).filter((t) => t !== 'transplant');
+
+// Words people use for a group of catalog plants, in both languages.
+const GROUPS: { words: string[]; plants: string[] }[] = [
+  {
+    words: ['insalata', 'insalate', 'salad', 'lettuce', 'verdura a foglia', 'leafy'],
+    plants: ['Lattuga', 'Indivia riccia', 'Scarola', 'Valerianella', 'Rucola', 'Cicoria da taglio', 'Radicchio di Chioggia', 'Radicchio di Treviso tardivo', 'Radicchio di Castelfranco', 'Spinacio'],
+  },
+  {
+    words: ['cavolo', 'cavoli', 'cabbage', 'brassica', 'crucifere'],
+    plants: ['Cavolfiore', 'Broccolo', 'Cavolo cappuccio', 'Verza', 'Cavolo nero', 'Cavolo di Bruxelles', 'Cime di rapa'],
+  },
+  {
+    words: ['radicchio', 'cicoria', 'chicory'],
+    plants: ['Radicchio di Chioggia', 'Radicchio di Treviso tardivo', 'Radicchio di Castelfranco', 'Cicoria da taglio', 'Indivia riccia', 'Scarola'],
+  },
+  {
+    words: ['aromatiche', 'aromatica', 'erbe', 'odori', 'herbs', 'herb'],
+    plants: ['Basilico', 'Prezzemolo', 'Rosmarino', 'Salvia', 'Timo', 'Menta', 'Lavanda'],
+  },
+  { words: ['fiori', 'fiore', 'flowers', 'flower', 'ornamentali'], plants: ['Ortensia', 'Rosa', 'Lavanda'] },
+  { words: ['frutta', 'frutto', 'fruit', 'agrumi', 'citrus'], plants: ['Fragola', 'Limone (vaso)'] },
+];
+
+const normalize = (s: string) =>
+  s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+/**
+ * Catalog plants matching what the user typed: by name in either language
+ * (a plural like "pomodori" finds Pomodoro) or by group ("insalata",
+ * "cavolo", "aromatiche").
+ */
+export function searchPresets(query: string): PlantPreset[] {
+  const q = normalize(query);
+  if (!q) return [];
+  // Drop one final letter, so plurals and singulars meet.
+  const stem = q.length > 4 ? q.slice(0, -1) : q;
+  const fromGroups = new Set(
+    GROUPS.filter((g) => g.words.some((w) => normalize(w).startsWith(stem))).flatMap((g) => g.plants),
+  );
+  const byName = PLANT_PRESETS.filter((p) =>
+    [p.name, CATALOG_EN[p.name] ?? ''].some((n) => normalize(n).includes(stem)),
+  );
+  return [...byName, ...PLANT_PRESETS.filter((p) => fromGroups.has(p.name) && !byName.includes(p))];
+}
 
 /** The catalog entry for a plant: the one it was created from, else a name match. */
 export function presetFor(plant: { preset: string | null; name: string }): PlantPreset | undefined {

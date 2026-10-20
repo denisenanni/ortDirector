@@ -101,6 +101,7 @@ export function afterRain(
 export function sunMismatch(need: Sun, spot: Sun): string | null {
   if (need === 'full' && spot !== 'full') return tr('Qui prende meno sole di quanto le serve.', 'Gets less sun here than it needs.');
   if (need === 'shade' && spot === 'full') return tr('Qui prende troppo sole: rischia di bruciarsi.', 'Too much sun here: it may scorch.');
+  if (need === 'partial' && spot === 'shade') return tr('Qui prende meno sole di quanto le serve.', 'Gets less sun here than it needs.');
   return null;
 }
 

@@ -6,7 +6,7 @@ import { Body, Button, Chip, ChipRow, Field, Input, PastDayPicker, Screen, Stepp
 import { coldWateringDefault, createPlant, deletePlant, getPlant, listZones, transplant, updatePlant, type PlantInput } from '@/lib/db';
 import { syncReminders } from '@/lib/notifications';
 import { expandPlan, planFor } from '@/lib/plans';
-import { PLANT_PRESETS, SUN_LABEL, everyDays, isAnnual, presetFor } from '@/lib/presets';
+import { PLANT_PRESETS, SUN_LABEL, everyDays, isAnnual, presetFor, searchPresets } from '@/lib/presets';
 import { deletePhoto } from '@/lib/photos';
 import { sunMismatch, today as getToday } from '@/lib/schedule';
 import type { Sun, Zone } from '@/lib/types';
@@ -50,6 +50,7 @@ export default function EditPlantScreen() {
   const editingId = id ? Number(id) : null;
   const [form, setForm] = useState<PlantInput>(EMPTY);
   const [tip, setTip] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
   const [start, setStart] = useState<Start>('ground');
   const [zones, setZones] = useState<Zone[]>([]);
   const t = useTheme();
@@ -101,6 +102,8 @@ export default function EditPlantScreen() {
   };
 
   const plan = planFor(presetFor(form)?.name);
+  const matches = searchPresets(query).slice(0, 12);
+  const chosen = form.preset ? PLANT_PRESETS.find((p) => p.name === form.preset) : undefined;
   const zone = zones.find((z) => z.id === form.zoneId);
   const mismatch = zone ? sunMismatch(form.sun, zone.sun) : null;
 
@@ -162,29 +165,34 @@ export default function EditPlantScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
           {editingId === null && (
-            <Field label={tr('Parti da una pianta comune', 'Start from a common plant')}>
-              {/* Two scrolling rows instead of a wall of chips. */}
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={{ marginHorizontal: -16 }}
-                contentContainerStyle={{ paddingHorizontal: 16 }}
-              >
-                <View style={{ gap: 8 }}>
-                  {[0, 1].map((r) => (
-                    <View key={r} style={{ flexDirection: 'row', gap: 8 }}>
-                      {PLANT_PRESETS.filter((_, i) => i % 2 === r).map((p) => (
-                        <Chip
-                          key={p.name}
-                          label={cat(p.name)}
-                          selected={form.preset === p.name}
-                          onPress={() => applyPreset(p.name)}
-                        />
-                      ))}
-                    </View>
-                  ))}
+            <Field label={tr('Cerca nel catalogo', 'Find it in the catalog')}>
+              <Input
+                value={query}
+                onChangeText={setQuery}
+                placeholder={tr('Cerca: pomodoro, insalata, cavolo, aromatiche…', 'Search: tomato, salad, cabbage, herbs…')}
+                autoCorrect={false}
+              />
+              {matches.length > 0 || chosen ? (
+                <View style={{ marginTop: 8 }}>
+                  <ChipRow>
+                    {chosen && !matches.includes(chosen) ? (
+                      <Chip label={cat(chosen.name)} selected onPress={() => applyPreset(chosen.name)} />
+                    ) : null}
+                    {matches.map((p) => (
+                      <Chip
+                        key={p.name}
+                        label={cat(p.name)}
+                        selected={form.preset === p.name}
+                        onPress={() => applyPreset(p.name)}
+                      />
+                    ))}
+                  </ChipRow>
                 </View>
-              </ScrollView>
+              ) : query.trim() ? (
+                <Body muted style={{ marginTop: 8 }}>
+                  {tr('Non è nel catalogo: scrivi il nome qui sotto e scegli tu sole e acqua.', 'Not in the catalog: type the name below and set sun and water yourself.')}
+                </Body>
+              ) : null}
               {tip ? <Body muted style={{ marginTop: 8 }}>{tip}</Body> : null}
             </Field>
           )}
