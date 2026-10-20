@@ -11,6 +11,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { locale, tr } from '@/lib/i18n';
 import { addDays, daysBetween, fromDay } from '@/lib/schedule';
 import { Icon, type IconName } from './Icon';
 
@@ -358,18 +359,21 @@ export function Stepper({
   const inc = () => onChange(value === null ? min : Math.min(max, value + 1));
   return (
     <View style={[styles.stepper, { borderColor: t.border, backgroundColor: t.card }]}>
-      <Pressable accessibilityLabel="Diminuisci" onPress={dec} style={styles.stepBtn} hitSlop={8}>
+      <Pressable accessibilityLabel={tr('Diminuisci', 'Decrease')} onPress={dec} style={styles.stepBtn} hitSlop={8}>
         <Text style={[styles.stepSign, { color: t.accent }]}>−</Text>
       </Pressable>
       <Text style={[styles.body, { color: t.text, flex: 1, textAlign: 'center' }]}>
         {value === null ? allowOff : format(value)}
       </Text>
-      <Pressable accessibilityLabel="Aumenta" onPress={inc} style={styles.stepBtn} hitSlop={8}>
+      <Pressable accessibilityLabel={tr('Aumenta', 'Increase')} onPress={inc} style={styles.stepBtn} hitSlop={8}>
         <Text style={[styles.stepSign, { color: t.accent }]}>+</Text>
       </Pressable>
     </View>
   );
 }
+
+const daysAgo = (n: number) =>
+  n === 0 ? tr('Oggi', 'Today') : n === 1 ? tr('Ieri', 'Yesterday') : tr(`${n} giorni fa`, `${n} days ago`);
 
 /** Picks today or a day in the past, as "N days ago". */
 export function PastDayPicker({
@@ -388,7 +392,7 @@ export function PastDayPicker({
         {[0, 1, 7, 14, 30].map((d) => (
           <Chip
             key={d}
-            label={d === 0 ? 'Oggi' : d === 1 ? 'Ieri' : `${d} giorni fa`}
+            label={daysAgo(d)}
             selected={ago === d}
             onPress={() => onChange(addDays(today, -d))}
           />
@@ -404,8 +408,8 @@ export function PastDayPicker({
         format={(v) => {
           const n = 365 - v;
           return (
-            (n === 0 ? 'Oggi' : n === 1 ? 'Ieri' : `${n} giorni fa`) +
-            ` · ${fromDay(addDays(today, -n)).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}`
+            daysAgo(n) +
+            ` · ${fromDay(addDays(today, -n)).toLocaleDateString(locale(), { day: 'numeric', month: 'short' })}`
           );
         }}
       />

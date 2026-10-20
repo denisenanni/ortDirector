@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { Platform } from 'react-native';
 import { getReminderHour, listOpenTasks } from './db';
+import { tr } from './i18n';
 import { buildReminders } from './schedule';
 
 const CHANNEL_ID = 'reminders';
@@ -18,7 +19,7 @@ Notifications.setNotificationHandler({
 export async function ensurePermission(): Promise<boolean> {
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
-      name: 'Promemoria orto',
+      name: tr('Promemoria orto', 'Garden reminders'),
       importance: Notifications.AndroidImportance.DEFAULT,
     });
   }

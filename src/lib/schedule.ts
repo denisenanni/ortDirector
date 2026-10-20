@@ -1,5 +1,6 @@
 // Pure date and scheduling logic. No React Native imports here, so it runs
 // under `node --test` (see schedule.test.ts).
+import { locale, tr } from './i18n.ts';
 import type { DayString, Sun, Task, TaskWithPlant } from './types';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -34,12 +35,12 @@ export function daysBetween(a: DayString, b: DayString): number {
 
 export function relativeLabel(day: DayString, ref: DayString): string {
   const diff = daysBetween(ref, day);
-  if (diff === 0) return 'Oggi';
-  if (diff === 1) return 'Domani';
-  if (diff === -1) return 'Ieri';
-  if (diff < 0) return `In ritardo di ${-diff} giorni`;
-  if (diff < 7) return `Tra ${diff} giorni`;
-  return fromDay(day).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+  if (diff === 0) return tr('Oggi', 'Today');
+  if (diff === 1) return tr('Domani', 'Tomorrow');
+  if (diff === -1) return tr('Ieri', 'Yesterday');
+  if (diff < 0) return tr(`In ritardo di ${-diff} giorni`, `${-diff} days late`);
+  if (diff < 7) return tr(`Tra ${diff} giorni`, `In ${diff} days`);
+  return fromDay(day).toLocaleDateString(locale(), { day: 'numeric', month: 'short' });
 }
 
 function month(day: DayString): number {
@@ -98,18 +99,18 @@ export function afterRain(
 
 /** Why a spot doesn't suit a plant's sun needs, or null when it does. */
 export function sunMismatch(need: Sun, spot: Sun): string | null {
-  if (need === 'full' && spot !== 'full') return 'Qui prende meno sole di quanto le serve.';
-  if (need === 'shade' && spot === 'full') return 'Qui prende troppo sole: rischia di bruciarsi.';
+  if (need === 'full' && spot !== 'full') return tr('Qui prende meno sole di quanto le serve.', 'Gets less sun here than it needs.');
+  if (need === 'shade' && spot === 'full') return tr('Qui prende troppo sole: rischia di bruciarsi.', 'Too much sun here: it may scorch.');
   return null;
 }
 
 /** When something happened, for history: "Oggi", "Ieri", "3 giorni fa", or the date. */
 export function pastLabel(day: DayString, ref: DayString): string {
   const ago = daysBetween(day, ref);
-  if (ago <= 0) return 'Oggi';
-  if (ago === 1) return 'Ieri';
-  if (ago < 7) return `${ago} giorni fa`;
-  return fromDay(day).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+  if (ago <= 0) return tr('Oggi', 'Today');
+  if (ago === 1) return tr('Ieri', 'Yesterday');
+  if (ago < 7) return tr(`${ago} giorni fa`, `${ago} days ago`);
+  return fromDay(day).toLocaleDateString(locale(), { day: 'numeric', month: 'short' });
 }
 
 /**
@@ -185,11 +186,14 @@ export function buildReminders(
     if (at.getTime() <= now.getTime()) continue;
     const names = list.map(taskLabel);
     const shown = names.slice(0, 3).join(', ');
-    const more = names.length > 3 ? ` e altre ${names.length - 3}` : '';
+    const more = names.length > 3 ? tr(` e altre ${names.length - 3}`, ` and ${names.length - 3} more`) : '';
     reminders.push({
       day,
       at,
-      title: list.length === 1 ? 'Oggi nell’orto: 1 attività' : `Oggi nell’orto: ${list.length} attività`,
+      title:
+        list.length === 1
+          ? tr('Oggi nell’orto: 1 attività', 'In the garden today: 1 task')
+          : tr(`Oggi nell’orto: ${list.length} attività`, `In the garden today: ${list.length} tasks`),
       body: shown + more,
     });
   }

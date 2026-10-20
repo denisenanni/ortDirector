@@ -1,4 +1,5 @@
 import { Text, View } from 'react-native';
+import { tr } from '@/lib/i18n';
 import { intervalOn, today } from '@/lib/schedule';
 import type { Plant } from '@/lib/types';
 import { Icon } from './Icon';
@@ -32,5 +33,6 @@ export function PlantAvatar({ plant, size = 52 }: { plant: Pick<Plant, 'name' | 
 /** The watering interval in force today, short: "ogni 3 gg". */
 export function waterLabel(plant: Pick<Plant, 'waterEveryDays' | 'waterColdDays'>): string {
   const days = intervalOn({ repeatDays: plant.waterEveryDays, coldRepeatDays: plant.waterColdDays }, today());
-  return days === 1 ? 'ogni giorno' : `ogni ${days} gg`;
+  if (!days) return '';
+  return days === 1 ? tr('ogni giorno', 'every day') : tr(`ogni ${days} gg`, `every ${days} d`);
 }

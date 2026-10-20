@@ -10,6 +10,7 @@ import { presetFor, repeatLabel } from '@/lib/presets';
 import { daysBetween, fromDay, today as getToday } from '@/lib/schedule';
 import type { Plant } from '@/lib/types';
 import { TASK_SYMBOL } from '@/components/Icon';
+import { cat, locale, tr } from '@/lib/i18n';
 
 export default function TransplantScreen() {
   const db = useSQLiteContext();
@@ -52,39 +53,44 @@ export default function TransplantScreen() {
 
   const when = (dueOn: string) => {
     const d = daysBetween(day, dueOn);
-    return d === 0 ? 'Dal giorno stesso' : `Dopo ${d} giorni`;
+    return d === 0 ? tr('Dal giorno stesso', 'From the same day') : tr(`Dopo ${d} giorni`, `After ${d} days`);
   };
 
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
-        <Field label={`Quando hai messo a dimora ${plant.name.toLowerCase()}?`}>
+        <Field label={tr(`Quando hai messo a dimora ${plant.name.toLowerCase()}?`, `When did you plant out the ${plant.name.toLowerCase()}?`)}>
           <PastDayPicker value={day} onChange={setDay} today={today} />
         </Field>
 
-        <Field label="Dove">
+        <Field label={tr('Dove', 'Where')}>
           <ChipRow>
-            <Chip icon="ground" label="In terra" selected={!potted} onPress={() => setPotted(false)} />
-            <Chip label="In vaso" selected={potted} onPress={() => setPotted(true)} />
+            <Chip icon="ground" label={tr('In terra', 'In the ground')} selected={!potted} onPress={() => setPotted(false)} />
+            <Chip label={tr('In vaso', 'In a pot')} selected={potted} onPress={() => setPotted(true)} />
           </ChipRow>
         </Field>
 
         {plan ? (
-          <Field label="Attività dal piano">
+          <Field label={tr('Attività dal piano', 'Tasks from the plan')}>
             <Body muted style={{ marginBottom: 8 }}>
-              Contate dal trapianto. Togli quelle che non ti servono; dopo puoi modificarle una per una.
+              {tr(
+                'Contate dal trapianto. Togli quelle che non ti servono; dopo puoi modificarle una per una.',
+                'Counted from the transplant. Untick the ones you don’t need; you can edit each one later.',
+              )}
             </Body>
             {steps.map((s, i) => {
               const t = planned[i];
               const detail = !t
-                ? 'Già passata'
+                ? tr('Già passata', 'Already past')
                 : `${when(t.dueOn)}${repeatLabel(t) ? `, ${repeatLabel(t)}` : ''}` +
-                  (t.endsOn ? ` fino al ${fromDay(t.endsOn).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}` : '');
+                  (t.endsOn
+                    ? ` ${tr('fino al', 'until')} ${fromDay(t.endsOn).toLocaleDateString(locale(), { day: 'numeric', month: 'short' })}`
+                    : '');
               return (
                 <ToggleRow
                   key={i}
                   icon={TASK_SYMBOL[s.type]}
-                  label={s.title}
+                  label={cat(s.title)}
                   detail={detail}
                   on={!!t && !skipped.has(i)}
                   disabled={!t}
@@ -95,11 +101,14 @@ export default function TransplantScreen() {
           </Field>
         ) : (
           <Body muted style={{ marginBottom: 18 }}>
-            Questa pianta non è nel catalogo, quindi non ha un piano automatico. Aggiungi tu le attività dalla sua scheda.
+            {tr(
+              'Questa pianta non è nel catalogo, quindi non ha un piano automatico. Aggiungi tu le attività dalla sua scheda.',
+              'This plant isn’t in the catalog, so it has no automatic plan. Add its tasks yourself from its page.',
+            )}
           </Body>
         )}
 
-        <Button icon="transplant" label="Segna il trapianto" onPress={save} />
+        <Button icon="transplant" label={tr('Segna il trapianto', 'Mark as transplanted')} onPress={save} />
       </ScrollView>
     </Screen>
   );

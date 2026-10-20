@@ -23,6 +23,7 @@ import { photoUri } from '@/lib/photos';
 import { SUN_LABEL } from '@/lib/presets';
 import { sunMismatch } from '@/lib/schedule';
 import type { Plant, Zone } from '@/lib/types';
+import { tr } from '@/lib/i18n';
 
 export default function PlantsScreen() {
   const db = useSQLiteContext();
@@ -71,8 +72,8 @@ export default function PlantsScreen() {
                 label={waterLabel(p)}
               />
             ) : null}
-            {p.potted ? <Pill label="In vaso" /> : null}
-            {p.stage === 'seedbed' ? <Pill tone="accent" label="Da trapiantare" /> : null}
+            {p.potted ? <Pill label={tr('In vaso', 'In a pot')} /> : null}
+            {p.stage === 'seedbed' ? <Pill tone="accent" label={tr('Da trapiantare', 'To transplant')} /> : null}
           </PillRow>
           {warn ? (
             <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
@@ -95,7 +96,7 @@ export default function PlantsScreen() {
       onPress={() => router.push({ pathname: '/zone/edit', params: { id: String(z.id) } })}
     >
       {z.name}
-      {z.covered ? <Text style={{ color: t.muted }}> · al coperto</Text> : null}
+      {z.covered ? <Text style={{ color: t.muted }}> · {tr('al coperto', 'covered')}</Text> : null}
     </SectionHeader>
   );
 
@@ -105,19 +106,26 @@ export default function PlantsScreen() {
   const summary =
     plants.length === 0
       ? null
-      : `${plants.length === 1 ? '1 pianta' : `${plants.length} piante`}` +
-        (zoneCount > 0 ? ` in ${zoneCount === 1 ? '1 zona' : `${zoneCount} zone`}` : '');
+      : tr(
+          `${plants.length === 1 ? '1 pianta' : `${plants.length} piante`}` +
+            (zoneCount > 0 ? ` in ${zoneCount === 1 ? '1 zona' : `${zoneCount} zone`}` : ''),
+          `${plants.length === 1 ? '1 plant' : `${plants.length} plants`}` +
+            (zoneCount > 0 ? ` in ${zoneCount === 1 ? '1 zone' : `${zoneCount} zones`}` : ''),
+        );
 
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
         <LargeHeader
-          title="Piante"
+          title={tr('Piante', 'Plants')}
           subtitle={summary}
-          right={<IconButton icon="add" label="Aggiungi pianta" filled onPress={() => router.push('/plant/edit')} />}
+          right={<IconButton icon="add" label={tr('Aggiungi pianta', 'Add plant')} filled onPress={() => router.push('/plant/edit')} />}
         />
         {data.plants.length === 0 && zones.length === 0 && (
-          <Empty title="Nessuna pianta" hint="Aggiungi la prima pianta del tuo orto o giardino con il +." />
+          <Empty
+            title={tr('Nessuna pianta', 'No plants')}
+            hint={tr('Aggiungi la prima pianta del tuo orto o giardino con il +.', 'Add the first plant of your garden with the +.')}
+          />
         )}
         {planted.map((z) => (
           <View key={z.id}>
@@ -125,18 +133,18 @@ export default function PlantsScreen() {
             <Group>{plants.filter((p) => p.zoneId === z.id).map((p) => row(p, z))}</Group>
           </View>
         ))}
-        {noZone.length > 0 && zones.length > 0 && <SectionHeader>Senza zona</SectionHeader>}
+        {noZone.length > 0 && zones.length > 0 && <SectionHeader>{tr('Senza zona', 'No zone')}</SectionHeader>}
         <Group>{noZone.map((p) => row(p))}</Group>
         {empty.map((z) => (
           <View key={z.id}>
             {zoneHeader(z)}
-            <Body muted>Nessuna pianta in questa zona.</Body>
+            <Body muted>{tr('Nessuna pianta in questa zona.', 'No plants in this zone.')}</Body>
           </View>
         ))}
-        {archived.length > 0 && <SectionHeader icon="archive">Archivio</SectionHeader>}
+        {archived.length > 0 && <SectionHeader icon="archive">{tr('Archivio', 'Archive')}</SectionHeader>}
         <Group>{archived.map((p) => row(p))}</Group>
         <View style={{ height: 16 }} />
-        <Button kind="secondary" icon="add" label="Nuova zona" onPress={() => router.push('/zone/edit')} />
+        <Button kind="secondary" icon="add" label={tr('Nuova zona', 'New zone')} onPress={() => router.push('/zone/edit')} />
       </ScrollView>
     </Screen>
   );
