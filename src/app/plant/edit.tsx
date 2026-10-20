@@ -1,6 +1,6 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Body, Button, Chip, ChipRow, Field, Input, PastDayPicker, Screen, Stepper, useTheme } from '@/components/ui';
 import { coldWateringDefault, createPlant, deletePlant, getPlant, listZones, updatePlant, type PlantInput } from '@/lib/db';
@@ -49,10 +49,16 @@ export default function EditPlantScreen() {
   const t = useTheme();
   const today = getToday();
 
-  // Reload on focus, to pick up a zone just created from here.
+  // Reload on focus, to pick up a zone just created from here, and select it.
+  const knownZones = useRef<Set<number> | null>(null);
   useFocusEffect(
     useCallback(() => {
-      listZones(db).then(setZones);
+      listZones(db).then((list) => {
+        const added = knownZones.current && list.find((z) => !knownZones.current!.has(z.id));
+        knownZones.current = new Set(list.map((z) => z.id));
+        setZones(list);
+        if (added) setForm((f) => ({ ...f, zoneId: added.id }));
+      });
     }, [db]),
   );
 

@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   addDays,
   afterRain,
+  pastLabel,
   sunMismatch,
   nextInSeason,
   buildReminders,
@@ -53,6 +54,13 @@ test('relativeLabel', () => {
   assert.equal(relativeLabel('2026-10-17', ref), 'Ieri');
   assert.equal(relativeLabel('2026-10-15', ref), 'In ritardo di 3 giorni');
   assert.equal(relativeLabel('2026-10-21', ref), 'Tra 3 giorni');
+});
+
+test('pastLabel reads history as the past, never as overdue', () => {
+  const ref = '2026-10-20';
+  assert.equal(pastLabel('2026-10-20', ref), 'Oggi');
+  assert.equal(pastLabel('2026-10-19', ref), 'Ieri');
+  assert.equal(pastLabel('2026-10-18', ref), '2 giorni fa');
 });
 
 test('completeTask rolls repeating tasks forward from the completion day', () => {

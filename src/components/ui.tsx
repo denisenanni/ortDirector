@@ -208,15 +208,19 @@ export function PastDayPicker({
         ))}
       </ChipRow>
       <View style={{ height: 8 }} />
+      {/* The stepper counts days from a year ago, so − goes back in time and + towards today. */}
       <Stepper
-        value={ago}
-        onChange={(v) => onChange(addDays(today, -(v ?? 0)))}
+        value={365 - ago}
+        onChange={(v) => onChange(addDays(today, -(365 - (v ?? 365))))}
         min={0}
         max={365}
-        format={(v) =>
-          (v === 0 ? 'Oggi' : v === 1 ? 'Ieri' : `${v} giorni fa`) +
-          ` · ${fromDay(addDays(today, -v)).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}`
-        }
+        format={(v) => {
+          const n = 365 - v;
+          return (
+            (n === 0 ? 'Oggi' : n === 1 ? 'Ieri' : `${n} giorni fa`) +
+            ` · ${fromDay(addDays(today, -n)).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}`
+          );
+        }}
       />
     </>
   );

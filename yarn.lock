@@ -871,7 +871,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@expo/config-plugins@npm:~57.0.10":
+"@expo/config-plugins@npm:^57.0.10, @expo/config-plugins@npm:~57.0.10":
   version: 57.0.10
   resolution: "@expo/config-plugins@npm:57.0.10"
   dependencies:
@@ -2954,6 +2954,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"expo-document-picker@npm:~57.0.3":
+  version: 57.0.3
+  resolution: "expo-document-picker@npm:57.0.3"
+  peerDependencies:
+    expo: "*"
+  checksum: 10c0/17ff2d1d7063fd25a3c20961ab1f384d147923cea42c27d4431f1648b0db70d595cde6d5ce614a94ee973a85bec7626572de90131cf05539b4d8978fb16c5ea5
+  languageName: node
+  linkType: hard
+
 "expo-file-system@npm:~57.0.7":
   version: 57.0.7
   resolution: "expo-file-system@npm:57.0.7"
@@ -3137,6 +3146,21 @@ __metadata:
   version: 57.0.3
   resolution: "expo-server@npm:57.0.3"
   checksum: 10c0/541d9b319ba513df718868c87a8d57e30161c3879b7d5b43f308923290ce5ee349a1b3469901c2f382984b6595f4cf6beaee9d870f5eb874c45ddc0a42a13e56
+  languageName: node
+  linkType: hard
+
+"expo-sharing@npm:~57.0.23":
+  version: 57.0.23
+  resolution: "expo-sharing@npm:57.0.23"
+  dependencies:
+    "@expo/config-plugins": "npm:^57.0.10"
+    "@expo/config-types": "npm:^57.0.2"
+    "@expo/plist": "npm:^0.8.1"
+  peerDependencies:
+    expo: "*"
+    react: "*"
+    react-native: "*"
+  checksum: 10c0/31345e179c526f306edc9d45a3da2af168476b9e02a92b1ee572d50468e10e820a341db29e61cfb87e4ce503f6788d59b6dd5c86f6011ead3be5150d14bca6fd
   languageName: node
   linkType: hard
 
@@ -4686,9 +4710,12 @@ __metadata:
     "@types/react": "npm:~19.2.2"
     expo: "npm:~57.0.30"
     expo-constants: "npm:~57.0.22"
+    expo-document-picker: "npm:~57.0.3"
+    expo-file-system: "npm:~57.0.7"
     expo-linking: "npm:~57.0.13"
     expo-notifications: "npm:~57.0.23"
     expo-router: "npm:~57.0.28"
+    expo-sharing: "npm:~57.0.23"
     expo-sqlite: "npm:~57.0.4"
     expo-status-bar: "npm:~57.0.1"
     react: "npm:19.2.3"
