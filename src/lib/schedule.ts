@@ -42,20 +42,64 @@ export function relativeLabel(day: DayString, ref: DayString): string {
   return fromDay(day).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
 }
 
+function month(day: DayString): number {
+  return Number(day.slice(5, 7));
+}
+
+function firstOfMonth(day: DayString, plusMonths = 0): DayString {
+  const d = fromDay(day);
+  return toDay(new Date(d.getFullYear(), d.getMonth() + plusMonths, 1));
+}
+
+/** Same day `n` months on (clamped by Date, so Feb 29 + 12 months is Mar 1). */
+function addMonths(day: DayString, n: number): DayString {
+  const d = fromDay(day);
+  return toDay(new Date(d.getFullYear(), d.getMonth() + n, d.getDate()));
+}
+
+export function inSeason(day: DayString, months: number[] | null | undefined): boolean {
+  return !months || months.length === 0 || months.includes(month(day));
+}
+
+/** `day` itself when it is in season, else the first day of the next month that is. */
+export function nextInSeason(day: DayString, months: number[] | null | undefined): DayString {
+  if (inSeason(day, months)) return day;
+  for (let i = 1; i <= 12; i++) {
+    const first = firstOfMonth(day, i);
+    if (inSeason(first, months)) return first;
+  }
+  return day;
+}
+
 /**
  * What happens to a task when it is marked done on `doneOn`.
  * Repeating tasks roll forward from the completion day (water every 3 days
  * means 3 days after you actually watered, not after the original due date).
- * A repeating task with `endsOn` closes once its next date would fall after it.
+ * Outside its months a task skips to the first day of the next month it
+ * allows ("fertilize every 3 weeks, April to September"). A yearly task comes
+ * back at the start of its window next year (prune in February), or on the
+ * same date when it has no months. A task with `endsOn` closes once its next
+ * date would fall after it.
  */
 export function completeTask(
-  task: Pick<Task, 'repeatDays'> & { endsOn?: DayString | null },
+  task: Pick<Task, 'repeatDays'> & {
+    endsOn?: DayString | null;
+    yearly?: boolean;
+    months?: number[] | null;
+  },
   doneOn: DayString,
 ): { dueOn: DayString; doneOn: DayString | null } | { dueOn: null; doneOn: DayString } {
-  if (task.repeatDays && task.repeatDays > 0) {
-    const next = addDays(doneOn, task.repeatDays);
-    if (!task.endsOn || next <= task.endsOn) return { dueOn: next, doneOn: null };
+  let next: DayString | null = null;
+  if (task.yearly) {
+    next = task.months?.length
+      ? // Ten months on, then forward to the window: lands on next year's
+        // window for any window shorter than ten months.
+        nextInSeason(firstOfMonth(doneOn, 10), task.months)
+      : addMonths(doneOn, 12);
+  } else if (task.repeatDays && task.repeatDays > 0) {
+    next = nextInSeason(addDays(doneOn, task.repeatDays), task.months);
   }
+  if (next && (!task.endsOn || next <= task.endsOn)) return { dueOn: next, doneOn: null };
   return { dueOn: null, doneOn };
 }
 

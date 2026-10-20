@@ -3,11 +3,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   addDays,
+  nextInSeason,
   buildReminders,
   completeTask,
   daysBetween,
   relativeLabel,
 } from './schedule.ts';
+import { monthsLabel } from './presets.ts';
 import type { TaskWithPlant } from './types';
 
 function task(over: Partial<TaskWithPlant>): TaskWithPlant {
@@ -19,6 +21,8 @@ function task(over: Partial<TaskWithPlant>): TaskWithPlant {
     dueOn: '2026-10-18',
     repeatDays: null,
     endsOn: null,
+    yearly: false,
+    months: null,
     doneOn: null,
     notes: null,
     plantName: null,
@@ -68,6 +72,36 @@ test('completeTask closes a repeating task past its end day', () => {
     dueOn: null,
     doneOn: '2026-10-27',
   });
+});
+
+test('nextInSeason jumps to the first day of the next allowed month', () => {
+  assert.equal(nextInSeason('2026-05-10', [4, 5, 6, 7, 8, 9]), '2026-05-10');
+  assert.equal(nextInSeason('2026-10-02', [4, 5, 6, 7, 8, 9]), '2027-04-01');
+  assert.equal(nextInSeason('2026-10-02', [11, 12, 1]), '2026-11-01');
+  assert.equal(nextInSeason('2026-10-02', null), '2026-10-02');
+});
+
+test('completeTask keeps a repeating task inside its months', () => {
+  const fertilize = { repeatDays: 21, months: [4, 5, 6, 7, 8, 9] };
+  assert.equal(completeTask(fertilize, '2026-08-20').dueOn, '2026-09-10');
+  assert.equal(completeTask(fertilize, '2026-09-20').dueOn, '2027-04-01');
+});
+
+test('completeTask brings a yearly task back in next year\'s window', () => {
+  const prune = { repeatDays: null, yearly: true, months: [2] };
+  assert.equal(completeTask(prune, '2027-02-10').dueOn, '2028-02-01');
+  assert.equal(completeTask(prune, '2027-03-15').dueOn, '2028-02-01'); // done late
+  const lavender = { repeatDays: null, yearly: true, months: [8, 9] };
+  assert.equal(completeTask(lavender, '2026-09-25').dueOn, '2027-08-01');
+  assert.equal(completeTask({ repeatDays: null, yearly: true }, '2026-10-20').dueOn, '2027-10-20');
+  assert.equal(completeTask({ repeatDays: null, yearly: true, endsOn: '2027-01-01' }, '2026-10-20').dueOn, null);
+});
+
+test('monthsLabel groups runs, across New Year too', () => {
+  assert.equal(monthsLabel([4, 5, 6, 7, 8, 9]), 'apr–set');
+  assert.equal(monthsLabel([2]), 'feb');
+  assert.equal(monthsLabel([11, 12, 1, 3]), 'mar, nov–gen');
+  assert.equal(monthsLabel([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]), 'tutto l’anno');
 });
 
 test('buildReminders groups by day, folds overdue into today, skips done and past', () => {

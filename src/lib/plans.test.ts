@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PLANS, expandPlan, regularWateringFrom, transplantReminder } from './plans.ts';
+import { PLANS, expandPlan, regularWateringFrom, seasonalTasks, transplantReminder } from './plans.ts';
 import { PLANT_PRESETS } from './presets.ts';
 
 test('every catalog plant has a plan, and every plan a catalog plant', () => {
@@ -29,6 +29,8 @@ test('tomato plan counted from the transplant day', () => {
     dueOn: '2026-05-01',
     repeatDays: 1,
     endsOn: '2026-05-14',
+    yearly: false,
+    months: null,
   });
   assert.equal(byTitle['Mettere il tutore'].dueOn, '2026-05-08');
   assert.equal(byTitle['Mettere il tutore'].repeatDays, null);
@@ -48,6 +50,14 @@ test('a back-dated transplant drops past one-offs and moves repeats forward', ()
   assert.ok(tasks.every((t) => t.dueOn >= '2026-05-21'));
 });
 
+test('a late transplant leaves out what only fits the summer', () => {
+  const tasks = expandPlan(PLANS.Pomodoro.steps, '2026-10-01', '2026-10-01');
+  const byTitle = Object.fromEntries(tasks.map((t) => [t.title, t]));
+  assert.equal(byTitle['Raccolta'], undefined); // +70 is December, next season is past +150
+  assert.equal(byTitle['Concimazione'].dueOn, '2026-10-16');
+  assert.ok(tasks.every((t) => t.dueOn < '2026-11-01'));
+});
+
 test('regular watering takes over after establishment', () => {
   assert.equal(regularWateringFrom(PLANS.Pomodoro.steps, '2026-05-01'), '2026-05-15');
   assert.equal(regularWateringFrom(PLANS.Carota.steps, '2026-05-01'), null);
@@ -60,4 +70,21 @@ test('transplant reminder after the minimum weeks from sowing', () => {
   });
   assert.equal(transplantReminder(PLANS.Carota, '2026-03-01'), null);
   assert.equal(transplantReminder(undefined, '2026-03-01'), null);
+});
+
+test('seasonal care starts at its next season and stays in it', () => {
+  const tasks = seasonalTasks(PLANS.Rosa, '2026-10-20');
+  const byTitle = Object.fromEntries(tasks.map((t) => [t.title, t]));
+  assert.deepEqual(byTitle['Potatura'], {
+    type: 'prune',
+    title: 'Potatura',
+    dueOn: '2027-02-01',
+    repeatDays: null,
+    endsOn: null,
+    yearly: true,
+    months: [2],
+  });
+  assert.equal(byTitle['Concimazione'].dueOn, '2027-03-01');
+  assert.equal(byTitle['Concimazione'].repeatDays, 30);
+  assert.deepEqual(seasonalTasks(PLANS.Pomodoro, '2026-10-20'), []);
 });

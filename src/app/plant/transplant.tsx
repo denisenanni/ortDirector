@@ -6,7 +6,7 @@ import { Body, Button, Field, PastDayPicker, Screen, ToggleRow } from '@/compone
 import { getPlant, transplant } from '@/lib/db';
 import { syncReminders } from '@/lib/notifications';
 import { expandPlan, planFor } from '@/lib/plans';
-import { TASK_ICON, presetFor } from '@/lib/presets';
+import { TASK_ICON, presetFor, repeatLabel } from '@/lib/presets';
 import { daysBetween, fromDay, today as getToday } from '@/lib/schedule';
 import type { Plant } from '@/lib/types';
 
@@ -66,7 +66,7 @@ export default function TransplantScreen() {
               const t = planned[i];
               const detail = !t
                 ? 'Già passata'
-                : `${when(t.dueOn)}${t.repeatDays ? `, ogni ${t.repeatDays === 1 ? 'giorno' : `${t.repeatDays} giorni`}` : ''}` +
+                : `${when(t.dueOn)}${repeatLabel(t) ? `, ${repeatLabel(t)}` : ''}` +
                   (t.endsOn ? ` fino al ${fromDay(t.endsOn).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}` : '');
               return (
                 <ToggleRow

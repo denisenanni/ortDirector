@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { TASK_ICON } from '@/lib/presets';
+import { TASK_ICON, repeatLabel } from '@/lib/presets';
 import { daysBetween, fromDay, relativeLabel } from '@/lib/schedule';
 import type { TaskWithPlant } from '@/lib/types';
 import { useTheme } from './ui';
@@ -37,8 +37,8 @@ export function TaskRow({
         </Text>
         <Text style={{ color: overdue ? t.warn : t.muted, fontSize: 14, marginTop: 2 }}>
           {relativeLabel(task.dueOn, today)}
-          {task.repeatDays ? ` · ogni ${task.repeatDays === 1 ? 'giorno' : `${task.repeatDays} giorni`}` : ''}
-          {task.repeatDays && task.endsOn
+          {repeatLabel(task) ? ` · ${repeatLabel(task)}` : ''}
+          {(task.repeatDays || task.yearly) && task.endsOn
             ? ` fino al ${fromDay(task.endsOn).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}`
             : ''}
         </Text>

@@ -42,6 +42,10 @@ export interface Task {
   repeatDays: number | null;
   /** Last day a repeating task may fall on; after it the task closes. */
   endsOn: DayString | null;
+  /** Repeats once a year instead of every `repeatDays`. */
+  yearly: boolean;
+  /** Months (1-12) the task may fall in; null means all year. */
+  months: number[] | null;
   doneOn: DayString | null;
   notes: string | null;
 }

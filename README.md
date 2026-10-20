@@ -15,6 +15,9 @@ React Native + Expo (SDK 57), TypeScript, dati solo sul telefono (SQLite), prome
   Segnando il trapianto (data di default oggi) l'app crea le attività del piano della pianta, contate da quel giorno:
   per il pomodoro irrigazione fitta le prime 2 settimane, tutore a +7, concimazione da +15, femminelle ogni settimana, raccolta da +70.
   Le attività del piano si possono togliere prima di confermare e modificare una per una dopo. I piani sono in `src/lib/plans.ts`.
+- **Ricorrenze stagionali**: un'attività può ripetersi ogni N giorni solo in certi mesi (concime ogni 3 settimane, apr–set) o una volta l'anno (potatura a febbraio).
+  Fuori stagione salta al primo giorno del mese utile. Le perenni del catalogo (rosa, lavanda, ortensia, limone…) ricevono da sole le loro cure annuali,
+  e i passi estivi dei piani dell'orto (raccolta, concime) stanno nella loro stagione.
 - **Oggi**: cosa scade oggi o è in ritardo, i prossimi 7 giorni, e più avanti. Tocca il cerchio per segnare fatto.
 - **Promemoria**: una sola notifica al giorno (ora configurabile, default 8:00) con l'elenco delle attività.
 - **Storico** per pianta.

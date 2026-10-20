@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { openTransplant } from '@/components/TaskRow';
 import { Body, Button, Chip, ChipRow, Field, Input, Screen, Stepper } from '@/components/ui';
 import {
@@ -15,8 +15,8 @@ import {
   type TaskInput,
 } from '@/lib/db';
 import { syncReminders } from '@/lib/notifications';
-import { TASK_ICON, TASK_LABEL, TASK_TYPES } from '@/lib/presets';
-import { addDays, daysBetween, fromDay, relativeLabel, today as getToday } from '@/lib/schedule';
+import { MONTH_SHORT, TASK_ICON, TASK_LABEL, TASK_TYPES, monthsLabel } from '@/lib/presets';
+import { addDays, daysBetween, fromDay, nextInSeason, relativeLabel, today as getToday } from '@/lib/schedule';
 import type { Plant, Task, TaskType } from '@/lib/types';
 
 export default function EditTaskScreen() {
@@ -34,6 +34,8 @@ export default function EditTaskScreen() {
     dueOn: today,
     repeatDays: null,
     endsOn: null,
+    yearly: false,
+    months: null,
     notes: null,
   });
   // Track whether the user typed a custom title, so switching type doesn't clobber it.
@@ -45,7 +47,7 @@ export default function EditTaskScreen() {
       getTask(db, editingId).then((t) => {
         if (!t) return;
         setExisting(t);
-        setForm({ plantId: t.plantId, type: t.type, title: t.title, dueOn: t.dueOn, repeatDays: t.repeatDays, endsOn: t.endsOn, notes: t.notes });
+        setForm({ plantId: t.plantId, type: t.type, title: t.title, dueOn: t.dueOn, repeatDays: t.repeatDays, endsOn: t.endsOn, yearly: t.yearly, months: t.months, notes: t.notes });
         setCustomTitle(t.title !== TASK_LABEL[t.type]);
       });
     }
@@ -65,7 +67,16 @@ export default function EditTaskScreen() {
   };
 
   const save = async () => {
-    const clean = { ...form, title: form.title.trim(), notes: form.notes?.trim() || null };
+    const repeating = form.yearly || !!form.repeatDays;
+    const months = repeating && form.months?.length ? form.months : null;
+    const clean = {
+      ...form,
+      title: form.title.trim(),
+      notes: form.notes?.trim() || null,
+      months,
+      // A task never starts outside its months.
+      dueOn: nextInSeason(form.dueOn, months),
+    };
     if (editingId === null) await createTask(db, clean);
     else await updateTask(db, editingId, clean);
     finish();
@@ -147,13 +158,33 @@ export default function EditTaskScreen() {
           </Field>
 
           <Field label="Ripeti">
-            <Stepper
-              value={form.repeatDays}
-              onChange={(v) => set('repeatDays', v)}
-              allowOff="Una volta sola"
-              format={(v) => (v === 1 ? 'Ogni giorno' : `Ogni ${v} giorni`)}
-            />
-            {form.repeatDays && form.endsOn ? (
+            <ChipRow>
+              <Chip
+                label="Una volta"
+                selected={!form.yearly && !form.repeatDays}
+                onPress={() => setForm((f) => ({ ...f, yearly: false, repeatDays: null }))}
+              />
+              <Chip
+                label="Ogni tot giorni"
+                selected={!form.yearly && !!form.repeatDays}
+                onPress={() => setForm((f) => ({ ...f, yearly: false, repeatDays: f.repeatDays ?? 7 }))}
+              />
+              <Chip
+                label="Ogni anno"
+                selected={form.yearly}
+                onPress={() => setForm((f) => ({ ...f, yearly: true, repeatDays: null }))}
+              />
+            </ChipRow>
+            {!form.yearly && form.repeatDays ? (
+              <View style={{ marginTop: 8 }}>
+                <Stepper
+                  value={form.repeatDays}
+                  onChange={(v) => set('repeatDays', v ?? 1)}
+                  format={(v) => (v === 1 ? 'Ogni giorno' : `Ogni ${v} giorni`)}
+                />
+              </View>
+            ) : null}
+            {(form.repeatDays || form.yearly) && form.endsOn ? (
               <>
                 <Body muted style={{ marginTop: 8 }}>
                   Fino al {fromDay(form.endsOn).toLocaleDateString('it-IT', { day: 'numeric', month: 'long' })}
@@ -162,6 +193,40 @@ export default function EditTaskScreen() {
               </>
             ) : null}
           </Field>
+
+          {form.repeatDays || form.yearly ? (
+            <Field label="Solo in questi mesi">
+              <ChipRow>
+                {MONTH_SHORT.map((name, i) => {
+                  const m = i + 1;
+                  const on = !!form.months?.includes(m);
+                  return (
+                    <Chip
+                      key={m}
+                      label={name}
+                      selected={on}
+                      onPress={() =>
+                        setForm((f) => {
+                          const cur = f.months ?? [];
+                          const next = on ? cur.filter((x) => x !== m) : [...cur, m].sort((a, b) => a - b);
+                          return { ...f, months: next.length ? next : null };
+                        })
+                      }
+                    />
+                  );
+                })}
+              </ChipRow>
+              <Body muted style={{ marginTop: 8 }}>
+                {form.months?.length
+                  ? form.yearly
+                    ? `Una volta l’anno, ${monthsLabel(form.months)}.`
+                    : `Fuori da ${monthsLabel(form.months)} si ferma e riparte il primo giorno utile.`
+                  : form.yearly
+                    ? 'Nessun mese scelto: torna lo stesso giorno l’anno prossimo.'
+                    : 'Nessun mese scelto: tutto l’anno.'}
+              </Body>
+            </Field>
+          ) : null}
 
           <Field label="Note">
             <Input value={form.notes ?? ''} onChangeText={(v) => set('notes', v)} multiline />

@@ -1,11 +1,11 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { planFor, regularWateringFrom, transplantReminder, type PlannedTask } from './plans';
+import { planFor, regularWateringFrom, seasonalTasks, transplantReminder, type PlannedTask } from './plans';
 import { presetFor } from './presets';
 import { completeTask, today } from './schedule';
 import type { DayString, LogEntry, Plant, Stage, Sun, Task, TaskType, TaskWithPlant } from './types';
 
 export const DATABASE_NAME = 'ortdirector.db';
-const DATABASE_VERSION = 2;
+const DATABASE_VERSION = 3;
 
 export async function migrate(db: SQLiteDatabase) {
   await db.execAsync('PRAGMA foreign_keys = ON;');
@@ -60,7 +60,19 @@ export async function migrate(db: SQLiteDatabase) {
     `);
     version = 2;
   }
-  // Future migrations: if (version === 2) { ...; version = 3; }
+  if (version === 2) {
+    await db.execAsync(`
+      ALTER TABLE tasks ADD COLUMN yearly INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE tasks ADD COLUMN months TEXT;
+    `);
+    // Plants added before seasonal care existed get theirs now.
+    const plants = await db.getAllAsync<PlantRow>('SELECT * FROM plants');
+    for (const p of plants) {
+      for (const t of seasonalTasks(planFor(presetFor(p)?.name), today())) await insertTask(db, p.id, t);
+    }
+    version = 3;
+  }
+  // Future migrations: if (version === 3) { ...; version = 4; }
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
 }
 
@@ -88,6 +100,8 @@ interface TaskRow {
   due_on: string;
   repeat_days: number | null;
   ends_on: string | null;
+  yearly: number;
+  months: string | null;
   done_on: string | null;
   notes: string | null;
   plant_name?: string | null;
@@ -115,6 +129,8 @@ const toTask = (r: TaskRow): TaskWithPlant => ({
   dueOn: r.due_on,
   repeatDays: r.repeat_days,
   endsOn: r.ends_on,
+  yearly: r.yearly === 1,
+  months: r.months ? r.months.split(',').map(Number) : null,
   doneOn: r.done_on,
   notes: r.notes,
   plantName: r.plant_name ?? null,
@@ -158,6 +174,7 @@ export async function createPlant(db: SQLiteDatabase, p: PlantInput): Promise<nu
       );
     }
     await syncTransplantReminder(db, id, p);
+    for (const t of seasonalTasks(planFor(presetFor(p)?.name), today())) await insertTask(db, id, t);
   });
   return id;
 }
@@ -238,12 +255,7 @@ export async function transplant(db: SQLiteDatabase, plantId: number, day: DaySt
         waterFrom, plantId,
       );
     }
-    for (const t of tasks) {
-      await db.runAsync(
-        `INSERT INTO tasks (plant_id, type, title, due_on, repeat_days, ends_on) VALUES (?, ?, ?, ?, ?, ?)`,
-        plantId, t.type, t.title, t.dueOn, t.repeatDays, t.endsOn,
-      );
-    }
+    for (const t of tasks) await insertTask(db, plantId, t);
   });
 }
 
@@ -253,7 +265,25 @@ export async function deletePlant(db: SQLiteDatabase, id: number) {
 
 // --- Tasks -----------------------------------------------------------------
 
-export type TaskInput = Pick<Task, 'plantId' | 'type' | 'title' | 'dueOn' | 'repeatDays' | 'endsOn' | 'notes'>;
+export type TaskInput = Pick<
+  Task,
+  'plantId' | 'type' | 'title' | 'dueOn' | 'repeatDays' | 'endsOn' | 'yearly' | 'months' | 'notes'
+>;
+
+const monthsText = (months: number[] | null) => (months?.length ? months.join(',') : null);
+
+async function insertTask(
+  db: SQLiteDatabase,
+  plantId: number | null,
+  t: Omit<TaskInput, 'plantId' | 'notes'> & { notes?: string | null },
+): Promise<number> {
+  const res = await db.runAsync(
+    `INSERT INTO tasks (plant_id, type, title, due_on, repeat_days, ends_on, yearly, months, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    plantId, t.type, t.title, t.dueOn, t.repeatDays, t.endsOn, t.yearly ? 1 : 0, monthsText(t.months), t.notes ?? null,
+  );
+  return res.lastInsertRowId;
+}
 
 export async function listOpenTasks(db: SQLiteDatabase): Promise<TaskWithPlant[]> {
   const rows = await db.getAllAsync<TaskRow>(
@@ -276,18 +306,14 @@ export async function getTask(db: SQLiteDatabase, id: number): Promise<TaskWithP
 }
 
 export async function createTask(db: SQLiteDatabase, t: TaskInput): Promise<number> {
-  const res = await db.runAsync(
-    `INSERT INTO tasks (plant_id, type, title, due_on, repeat_days, ends_on, notes) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    t.plantId, t.type, t.title, t.dueOn, t.repeatDays, t.endsOn, t.notes,
-  );
-  return res.lastInsertRowId;
+  return insertTask(db, t.plantId, t);
 }
 
 export async function updateTask(db: SQLiteDatabase, id: number, t: TaskInput) {
   await db.runAsync(
-    `UPDATE tasks SET plant_id = ?, type = ?, title = ?, due_on = ?, repeat_days = ?, ends_on = ?, notes = ?
-     WHERE id = ?`,
-    t.plantId, t.type, t.title, t.dueOn, t.repeatDays, t.endsOn, t.notes, id,
+    `UPDATE tasks SET plant_id = ?, type = ?, title = ?, due_on = ?, repeat_days = ?, ends_on = ?,
+     yearly = ?, months = ?, notes = ? WHERE id = ?`,
+    t.plantId, t.type, t.title, t.dueOn, t.repeatDays, t.endsOn, t.yearly ? 1 : 0, monthsText(t.months), t.notes, id,
   );
 }
 
