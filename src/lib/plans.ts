@@ -38,6 +38,18 @@ const range = (from: number, to: number) => Array.from({ length: to - from + 1 }
 const SUMMER = range(5, 10);
 const HARVEST = range(6, 10);
 
+/** Autumn and winter crops are picked from October through March. */
+const COLD = [10, 11, 12, 1, 2, 3];
+/** Cabbage white caterpillars are about from June to October. */
+const cavolaia = (until: number): PlanStep => ({
+  type: 'check',
+  title: 'Controllo cavolaia (sotto le foglie)',
+  day: 14,
+  every: 7,
+  until,
+  months: range(6, 10),
+});
+
 const establish = (every: number, until: number): PlanStep => ({
   type: 'water',
   title: 'Annaffiare (attecchimento)',
@@ -131,6 +143,122 @@ export const PLANS: Record<string, CropPlan> = {
     steps: [
       { type: 'other', title: 'Diradare le piantine', day: 20 },
       { type: 'harvest', title: 'Raccolta', day: 75, every: 7, until: 110 },
+    ],
+  },
+  Finocchio: {
+    sowToTransplantWeeks: [5, 6],
+    steps: [
+      establish(1, 10),
+      { type: 'other', title: 'Rincalzare il grumolo', day: 40 },
+      { type: 'other', title: 'Rincalzare il grumolo', day: 60 },
+      { type: 'harvest', title: 'Raccolta', day: 80, every: 7, until: 120 },
+    ],
+  },
+  'Indivia riccia': {
+    sowToTransplantWeeks: [5, 6],
+    steps: [
+      establish(1, 10),
+      { type: 'other', title: 'Legare per imbianchire', day: 75 },
+      { type: 'harvest', title: 'Raccolta', day: 90, every: 7, until: 130 },
+    ],
+  },
+  Scarola: {
+    sowToTransplantWeeks: [5, 6],
+    steps: [
+      establish(1, 10),
+      { type: 'other', title: 'Legare per imbianchire', day: 75 },
+      { type: 'harvest', title: 'Raccolta', day: 90, every: 7, until: 130 },
+    ],
+  },
+  // Sown where it grows, like carrots.
+  Valerianella: {
+    steps: [
+      { type: 'other', title: 'Diradare le piantine', day: 20 },
+      { type: 'harvest', title: 'Raccolta', day: 60, every: 7, until: 150 },
+    ],
+  },
+  'Cicoria da taglio': {
+    steps: [{ type: 'harvest', title: 'Taglio', day: 40, every: 20, until: 160 }],
+  },
+  'Radicchio di Chioggia': {
+    sowToTransplantWeeks: [5, 6],
+    steps: [establish(1, 10), { type: 'harvest', title: 'Raccolta', day: 90, every: 7, until: 150 }],
+  },
+  'Radicchio di Treviso tardivo': {
+    sowToTransplantWeeks: [5, 6],
+    steps: [
+      establish(1, 10),
+      { type: 'other', title: 'Espiantare e forzare al buio', day: 120, months: [11, 12, 1] },
+      { type: 'harvest', title: 'Raccolta dopo la forzatura', day: 140, every: 7, until: 200, months: [12, 1, 2, 3] },
+    ],
+  },
+  'Radicchio di Castelfranco': {
+    sowToTransplantWeeks: [5, 6],
+    steps: [
+      establish(1, 10),
+      { type: 'harvest', title: 'Raccolta (dopo le gelate)', day: 110, every: 7, until: 170, months: [11, 12, 1, 2] },
+    ],
+  },
+  Cavolfiore: {
+    sowToTransplantWeeks: [4, 6],
+    steps: [
+      establish(1, 10),
+      cavolaia(90),
+      { type: 'fertilize', title: 'Concimazione', day: 30, every: 30, until: 70 },
+      { type: 'other', title: 'Coprire la testa con le foglie', day: 80 },
+      { type: 'harvest', title: 'Raccolta', day: 90, every: 4, until: 130 },
+    ],
+  },
+  Broccolo: {
+    sowToTransplantWeeks: [4, 6],
+    steps: [
+      establish(1, 10),
+      cavolaia(90),
+      { type: 'fertilize', title: 'Concimazione', day: 30, every: 30, until: 70 },
+      { type: 'harvest', title: 'Raccolta (testa e getti laterali)', day: 75, every: 4, until: 130 },
+    ],
+  },
+  'Cavolo cappuccio': {
+    sowToTransplantWeeks: [4, 6],
+    steps: [
+      establish(1, 10),
+      cavolaia(100),
+      { type: 'other', title: 'Rincalzare', day: 30 },
+      { type: 'harvest', title: 'Raccolta', day: 100, every: 7, until: 150 },
+    ],
+  },
+  Verza: {
+    sowToTransplantWeeks: [4, 6],
+    steps: [
+      establish(1, 10),
+      cavolaia(110),
+      { type: 'other', title: 'Rincalzare', day: 30 },
+      { type: 'harvest', title: 'Raccolta', day: 120, every: 7, until: 180, months: COLD },
+    ],
+  },
+  'Cavolo nero': {
+    sowToTransplantWeeks: [4, 6],
+    steps: [
+      establish(1, 10),
+      cavolaia(110),
+      { type: 'harvest', title: 'Raccolta foglie', day: 80, every: 7, until: 220, months: COLD },
+    ],
+  },
+  'Cavolo di Bruxelles': {
+    sowToTransplantWeeks: [5, 6],
+    steps: [
+      establish(1, 10),
+      cavolaia(110),
+      { type: 'other', title: 'Rincalzare', day: 30 },
+      { type: 'prune', title: 'Cimare la pianta', day: 120 },
+      { type: 'harvest', title: 'Raccolta', day: 140, every: 7, until: 220, months: [11, 12, 1, 2, 3] },
+    ],
+  },
+  // Sown where it grows.
+  'Cime di rapa': {
+    steps: [
+      { type: 'other', title: 'Diradare le piantine', day: 15 },
+      { type: 'harvest', title: 'Raccolta', day: 60, every: 5, until: 100 },
     ],
   },
   Cipolla: {

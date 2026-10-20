@@ -88,3 +88,11 @@ test('seasonal care starts at its next season and stays in it', () => {
   assert.equal(byTitle['Concimazione'].repeatDays, 30);
   assert.deepEqual(seasonalTasks(PLANS.Pomodoro, '2026-10-20'), []);
 });
+
+test('a savoy cabbage transplanted in August is picked from October', () => {
+  const tasks = expandPlan(PLANS.Verza.steps, '2026-08-01', '2026-08-01');
+  const byTitle = Object.fromEntries(tasks.map((t) => [t.title, t]));
+  assert.equal(byTitle['Controllo cavolaia (sotto le foglie)'].dueOn, '2026-08-15');
+  assert.equal(byTitle['Raccolta'].dueOn, '2026-11-29');
+  assert.deepEqual(byTitle['Raccolta'].months, [10, 11, 12, 1, 2, 3]);
+});
