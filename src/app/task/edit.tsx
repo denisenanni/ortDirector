@@ -15,9 +15,10 @@ import {
   type TaskInput,
 } from '@/lib/db';
 import { syncReminders } from '@/lib/notifications';
-import { MONTH_SHORT, TASK_ICON, TASK_LABEL, TASK_TYPES, monthsLabel } from '@/lib/presets';
+import { MONTH_SHORT, TASK_LABEL, TASK_TYPES, monthsLabel } from '@/lib/presets';
 import { addDays, daysBetween, fromDay, nextInSeason, relativeLabel, today as getToday } from '@/lib/schedule';
 import type { Plant, Task, TaskType } from '@/lib/types';
+import { TASK_SYMBOL } from '@/components/Icon';
 
 export default function EditTaskScreen() {
   const db = useSQLiteContext();
@@ -90,10 +91,11 @@ export default function EditTaskScreen() {
           {existing && (
             <>
               {existing.type === 'transplant' ? (
-                <Button label="🌱 Segna il trapianto" onPress={() => openTransplant(existing)} />
+                <Button icon="transplant" label="Segna il trapianto" onPress={() => openTransplant(existing)} />
               ) : (
                 <Button
-                  label="✓ Fatto oggi"
+                  icon="tick"
+                  label="Fatto oggi"
                   onPress={async () => {
                     await markDone(db, existing);
                     finish();
@@ -114,7 +116,7 @@ export default function EditTaskScreen() {
           <Field label="Tipo">
             <ChipRow>
               {TASK_TYPES.map((t) => (
-                <Chip key={t} label={`${TASK_ICON[t]} ${TASK_LABEL[t]}`} selected={form.type === t} onPress={() => setType(t)} />
+                <Chip key={t} icon={TASK_SYMBOL[t]} label={TASK_LABEL[t]} selected={form.type === t} onPress={() => setType(t)} />
               ))}
             </ChipRow>
           </Field>

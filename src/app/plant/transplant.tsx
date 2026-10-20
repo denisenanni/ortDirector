@@ -6,9 +6,10 @@ import { Body, Button, Chip, ChipRow, Field, PastDayPicker, Screen, ToggleRow } 
 import { getPlant, transplant } from '@/lib/db';
 import { syncReminders } from '@/lib/notifications';
 import { expandPlan, planFor } from '@/lib/plans';
-import { TASK_ICON, presetFor, repeatLabel } from '@/lib/presets';
+import { presetFor, repeatLabel } from '@/lib/presets';
 import { daysBetween, fromDay, today as getToday } from '@/lib/schedule';
 import type { Plant } from '@/lib/types';
+import { TASK_SYMBOL } from '@/components/Icon';
 
 export default function TransplantScreen() {
   const db = useSQLiteContext();
@@ -63,8 +64,8 @@ export default function TransplantScreen() {
 
         <Field label="Dove">
           <ChipRow>
-            <Chip label="🌳 In terra" selected={!potted} onPress={() => setPotted(false)} />
-            <Chip label="🪴 In vaso" selected={potted} onPress={() => setPotted(true)} />
+            <Chip icon="ground" label="In terra" selected={!potted} onPress={() => setPotted(false)} />
+            <Chip label="In vaso" selected={potted} onPress={() => setPotted(true)} />
           </ChipRow>
         </Field>
 
@@ -82,7 +83,8 @@ export default function TransplantScreen() {
               return (
                 <ToggleRow
                   key={i}
-                  label={`${TASK_ICON[s.type]} ${s.title}`}
+                  icon={TASK_SYMBOL[s.type]}
+                  label={s.title}
                   detail={detail}
                   on={!!t && !skipped.has(i)}
                   disabled={!t}
@@ -97,7 +99,7 @@ export default function TransplantScreen() {
           </Body>
         )}
 
-        <Button label="🌱 Segna il trapianto" onPress={save} />
+        <Button icon="transplant" label="Segna il trapianto" onPress={save} />
       </ScrollView>
     </Screen>
   );
