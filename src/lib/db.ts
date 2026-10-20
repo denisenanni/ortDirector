@@ -503,17 +503,65 @@ export async function rained(db: SQLiteDatabase, day: DayString = today()): Prom
      WHERE t.type = 'water' AND t.done_on IS NULL AND t.repeat_days IS NOT NULL
      AND COALESCE(z.covered, 0) = 0`,
   );
-  let moved = 0;
+  const moved: RainRecord['moved'] = [];
+  const before = await getLastRain(db);
   await db.withTransactionAsync(async () => {
     for (const r of rows) {
       const t = toTask(r);
       const due = afterRain(t, day);
       if (due === t.dueOn) continue;
       await db.runAsync('UPDATE tasks SET due_on = ? WHERE id = ?', due, t.id);
-      moved++;
+      moved.push({ id: t.id, from: t.dueOn, to: due });
+    }
+    const record: RainRecord = { day, moved, previousDay: before?.day === day ? before.previousDay : before?.day };
+    await db.runAsync(
+      `INSERT INTO settings (key, value) VALUES ('last_rain', ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+      JSON.stringify(record),
+    );
+  });
+  return moved.length;
+}
+
+/** The last time "it rained" was pressed, and which waterings it moved. */
+export interface RainRecord {
+  day: DayString;
+  moved: { id: number; from: DayString; to: DayString }[];
+  /** The rain before this one, shown again if this one is undone. */
+  previousDay?: DayString;
+}
+
+export async function getLastRain(db: SQLiteDatabase): Promise<RainRecord | null> {
+  const row = await db.getFirstAsync<{ value: string }>(`SELECT value FROM settings WHERE key = 'last_rain'`);
+  if (!row) return null;
+  try {
+    const r = JSON.parse(row.value) as RainRecord;
+    return typeof r.day === 'string' && Array.isArray(r.moved) ? r : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Takes back the last rain: waterings it moved go back to their old day,
+ * unless they have been done or moved again since.
+ */
+export async function undoRain(db: SQLiteDatabase): Promise<void> {
+  const last = await getLastRain(db);
+  if (!last) return;
+  await db.withTransactionAsync(async () => {
+    for (const m of last.moved) {
+      await db.runAsync('UPDATE tasks SET due_on = ? WHERE id = ? AND due_on = ? AND done_on IS NULL', m.from, m.id, m.to);
+    }
+    if (last.previousDay) {
+      await db.runAsync(
+        `UPDATE settings SET value = ? WHERE key = 'last_rain'`,
+        JSON.stringify({ day: last.previousDay, moved: [] } satisfies RainRecord),
+      );
+    } else {
+      await db.runAsync(`DELETE FROM settings WHERE key = 'last_rain'`);
     }
   });
-  return moved;
 }
 
 export async function listPlantLog(db: SQLiteDatabase, plantId: number, limit = 20): Promise<LogEntry[]> {
