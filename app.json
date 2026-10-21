@@ -26,12 +26,8 @@
     "plugins": [
       "expo-router",
       "expo-sqlite",
-      [
-        "expo-notifications",
-        {
-          "enableRemoteNotifications": false
-        }
-      ],
+      "./plugins/withoutPushEntitlement",
+      "expo-notifications",
       [
         "expo-image-picker",
         {

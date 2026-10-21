@@ -53,6 +53,32 @@ Se il telefono non vede il computer (reti aziendali, VPN): `yarn start --tunnel`
 
 Il progetto resta su SDK 57 perché è l’ultima che Expo Go dell’App Store supporta. Quando Expo Go passa a 58 si può aggiornare con `yarn expo install expo@^58 --fix`.
 
+## Installarla sull'iPhone (senza Expo Go)
+
+Con un Apple ID gratuito si installa da Xcode sul Mac. L'app gira da sola, senza computer né Wi-Fi, ma **ogni 7 giorni** il certificato scade: l'app non si apre più finché non la reinstalli con `yarn iphone`. I dati restano.
+
+Una volta sola:
+
+1. Installa **Xcode** dall'App Store del Mac, aprilo e accetta la licenza. Poi `xcode-select --install` e `brew install cocoapods`.
+2. Xcode → Settings → Accounts → **+** → Apple ID, accedi con il tuo.
+3. iPhone collegato col cavo: sblocca e tocca "Autorizza". Poi Impostazioni → Privacy e sicurezza → **Modalità sviluppatore** → attiva (il telefono si riavvia).
+
+Ogni volta (prima installazione e ogni 7 giorni):
+
+```sh
+yarn install
+yarn iphone
+```
+
+Scegli il tuo iPhone dalla lista. La prima volta chiede il team di firma: scegli il tuo nome ("Personal Team").
+Se invece si ferma con un errore di firma, apri `ios/ortDirector.xcworkspace` in Xcode, target ortDirector → Signing & Capabilities → Team = il tuo Personal Team, e rilancia `yarn iphone`.
+
+Alla prima apertura iOS dice "Sviluppatore non attendibile": Impostazioni → Generali → VPN e gestione dispositivi → il tuo Apple ID → **Autorizza**.
+
+La cartella `ios/` viene generata e non va committata (è in `.gitignore`). Dopo aver cambiato `app.json` o aggiunto un pacchetto nativo: `yarn expo prebuild -p ios --clean` e poi `yarn iphone`.
+
+L'app installata e Expo Go hanno dati separati: per portare le piante esporta il backup da Expo Go (Impostazioni → Esporta backup) e importalo nell'app installata.
+
 ## Sviluppo
 
 ```sh
@@ -73,4 +99,4 @@ Struttura:
 ## Prossimi passi possibili
 
 - Mappa schematica del giardino (aiuole, posizione delle piante).
-- Build vera per iPhone (EAS) invece di Expo Go, e Android.
+- Build EAS e TestFlight (serve l'account Apple Developer a pagamento), e Android.

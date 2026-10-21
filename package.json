@@ -35,6 +35,7 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
+    "iphone": "expo run:ios --device --configuration Release",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --no-warnings --test \"src/**/*.test.ts\""
