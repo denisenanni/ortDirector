@@ -137,6 +137,7 @@ export default function EditPlantScreen() {
   const plan = planFor(presetFor(form)?.name);
   const matches = searchPresets(query).slice(0, 12);
   const chosen = form.preset ? catalog().find((p) => p.name === form.preset) : undefined;
+  const inCatalog = catalog().some((p) => p.name === presetFor(form)?.name);
   const zone = zones.find((z) => z.id === form.zoneId);
   const mismatch = zone ? sunMismatch(form.sun, zone.sun) : null;
 
@@ -369,13 +370,16 @@ export default function EditPlantScreen() {
               />
             </View>
           </Field>
-          <Field label={tr('Sole che le serve', 'Sun it needs')}>
-            <ChipRow>
-              {SUNS.map((s) => (
-                <Chip key={s} icon={SUN_SYMBOL[s]} label={SUN_LABEL[s]} selected={form.sun === s} onPress={() => set('sun', s)} />
-              ))}
-            </ChipRow>
-          </Field>
+          {/* The catalog knows the sun its plants need; kinds and plants outside it don't. */}
+          {inCatalog ? null : (
+            <Field label={tr('Sole che le serve', 'Sun it needs')}>
+              <ChipRow>
+                {SUNS.map((s) => (
+                  <Chip key={s} icon={SUN_SYMBOL[s]} label={SUN_LABEL[s]} selected={form.sun === s} onPress={() => set('sun', s)} />
+                ))}
+              </ChipRow>
+            </Field>
+          )}
           <Field label={tr('Irrigazione da maggio a settembre', 'Watering from May to September')}>
             <Stepper
               value={form.waterEveryDays}
