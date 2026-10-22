@@ -14,8 +14,8 @@ import { locale, tr } from '@/lib/i18n';
 function rainDetail(moved: number): string {
   if (moved === 0) return tr('Nessuna annaffiatura da spostare.', 'No watering to move.');
   return tr(
-    `${moved === 1 ? '1 annaffiatura spostata' : `${moved} annaffiature spostate`}, tranne le zone al coperto.`,
-    `${moved === 1 ? '1 watering moved' : `${moved} waterings moved`}, except in covered zones.`,
+    `${moved === 1 ? '1 annaffiatura spostata' : `${moved} annaffiature spostate`}, tranne le piante al coperto.`,
+    `${moved === 1 ? '1 watering moved' : `${moved} waterings moved`}, except for plants under cover.`,
   );
 }
 

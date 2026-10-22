@@ -261,6 +261,7 @@ export default function PlantScreen() {
               />
             ) : null}
             {plant.potted ? <Pill label={plant.potSize ? POT_LABEL[plant.potSize] : tr('In vaso', 'In a pot')} /> : null}
+            {plant.covered && !zone?.covered ? <Pill icon="covered" label={tr('Al coperto', 'Under cover')} /> : null}
             <Pill label={plant.annual ? tr('Annuale', 'Annual') : tr('Perenne', 'Perennial')} />
           </PillRow>
         </View>

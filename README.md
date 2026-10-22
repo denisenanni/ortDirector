@@ -23,7 +23,7 @@ React Native + Expo (SDK 57), TypeScript, dati solo sul telefono (SQLite), prome
 - **Zone**: aiuole, vasi del balcone, serra… con il sole che prendono davvero e se sono al coperto. In Piante le piante sono raggruppate per zona,
   e se il sole della zona non va bene per la pianta (pomodoro in ombra, ortensia in pieno sole) compare un avviso.
   Una zona si può eliminare solo quando è vuota.
-- **Pioggia e stagioni**: il pulsante "Ha piovuto" in Oggi conta come annaffiate tutte le piante tranne quelle nelle zone al coperto.
+- **Pioggia e stagioni**: il pulsante "Ha piovuto" in Oggi conta come annaffiate tutte le piante tranne quelle al coperto: nelle zone al coperto o segnate "Al coperto" nel loro form.
   Ogni pianta ha un intervallo di irrigazione da maggio a settembre e uno per il resto dell'anno.
 - **Backup**: in Impostazioni "Esporta backup" crea un file JSON con tutti i dati da salvare su iCloud Drive o dove vuoi;
   "Importa backup" lo rimette al posto dei dati attuali, dopo una conferma. Le foto non sono nel backup.

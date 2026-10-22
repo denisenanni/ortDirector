@@ -11,7 +11,7 @@ import { coldWateringDefault } from './watering';
 import type { DayString, DoneEntry, LogEntry, Plant, Size, Stage, Sun, Task, TaskType, TaskWithPlant, Zone } from './types';
 
 export const DATABASE_NAME = 'ortdirector.db';
-export const DATABASE_VERSION = 6;
+export const DATABASE_VERSION = 7;
 
 export async function migrate(db: SQLiteDatabase) {
   await db.execAsync('PRAGMA foreign_keys = ON;');
@@ -145,7 +145,11 @@ export async function migrate(db: SQLiteDatabase) {
     `);
     version = 6;
   }
-  // Future migrations: if (version === 6) { ...; version = 7; }
+  if (version === 6) {
+    await db.execAsync(`ALTER TABLE plants ADD COLUMN covered INTEGER NOT NULL DEFAULT 0;`);
+    version = 7;
+  }
+  // Future migrations: if (version === 7) { ...; version = 8; }
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
   await loadCatalog(db);
 }
@@ -163,6 +167,7 @@ interface PlantRow {
   potted: number;
   size: Size | null;
   pot_size: Size | null;
+  covered: number;
   sun: Sun;
   water_every_days: number | null;
   water_cold_days: number | null;
@@ -203,6 +208,7 @@ const toPlant = (r: PlantRow): Plant => ({
   potted: r.potted === 1,
   size: r.size,
   potSize: r.pot_size,
+  covered: r.covered === 1,
   sun: r.sun,
   waterEveryDays: r.water_every_days,
   waterColdDays: r.water_cold_days,
@@ -267,9 +273,10 @@ export async function createPlant(
   let id = 0;
   await db.withTransactionAsync(async () => {
     const res = await db.runAsync(
-      `INSERT INTO plants (name, variety, location, zone_id, potted, size, pot_size, sun, water_every_days, water_cold_days,
-       stage, sown_on, planted_on, preset, annual, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      p.name, p.variety, p.location, p.zoneId, p.potted ? 1 : 0, p.size, p.potSize, p.sun, p.waterEveryDays, p.waterColdDays,
+      `INSERT INTO plants (name, variety, location, zone_id, potted, size, pot_size, covered, sun, water_every_days,
+       water_cold_days, stage, sown_on, planted_on, preset, annual, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      p.name, p.variety, p.location, p.zoneId, p.potted ? 1 : 0, p.size, p.potSize, p.covered ? 1 : 0, p.sun, p.waterEveryDays, p.waterColdDays,
       p.stage, p.sownOn, p.plantedOn, p.preset, p.annual ? 1 : 0, p.notes,
     );
     id = res.lastInsertRowId;
@@ -305,10 +312,10 @@ async function syncTransplantReminder(db: SQLiteDatabase, plantId: number, p: Pl
 export async function updatePlant(db: SQLiteDatabase, id: number, p: PlantInput) {
   await db.withTransactionAsync(async () => {
     await db.runAsync(
-      `UPDATE plants SET name = ?, variety = ?, location = ?, zone_id = ?, potted = ?, size = ?, pot_size = ?, sun = ?,
-       water_every_days = ?, water_cold_days = ?, stage = ?, sown_on = ?, planted_on = ?, preset = ?, annual = ?, notes = ?
-       WHERE id = ?`,
-      p.name, p.variety, p.location, p.zoneId, p.potted ? 1 : 0, p.size, p.potSize, p.sun, p.waterEveryDays, p.waterColdDays,
+      `UPDATE plants SET name = ?, variety = ?, location = ?, zone_id = ?, potted = ?, size = ?, pot_size = ?, covered = ?,
+       sun = ?, water_every_days = ?, water_cold_days = ?, stage = ?, sown_on = ?, planted_on = ?, preset = ?, annual = ?,
+       notes = ? WHERE id = ?`,
+      p.name, p.variety, p.location, p.zoneId, p.potted ? 1 : 0, p.size, p.potSize, p.covered ? 1 : 0, p.sun, p.waterEveryDays, p.waterColdDays,
       p.stage, p.sownOn, p.plantedOn, p.preset, p.annual ? 1 : 0, p.notes, id,
     );
     await syncTransplantReminder(db, id, p);
@@ -542,15 +549,15 @@ export async function postpone(db: SQLiteDatabase, task: Task, toDay: DayString)
 
 /**
  * "It rained": every open watering task counts as watered today, except for
- * plants in a covered zone (greenhouse, under a roof). Pots outdoors get the
- * rain too. Returns how many tasks moved.
+ * plants under cover: in a covered zone (greenhouse, under a roof) or marked
+ * covered themselves. Pots outdoors get the rain too. Returns how many tasks moved.
  */
 export async function rained(db: SQLiteDatabase, day: DayString = today()): Promise<number> {
   const rows = await db.getAllAsync<TaskRow>(
     `SELECT t.* FROM tasks t JOIN plants p ON p.id = t.plant_id
      LEFT JOIN zones z ON z.id = p.zone_id
      WHERE t.type = 'water' AND t.done_on IS NULL AND t.repeat_days IS NOT NULL
-     AND COALESCE(z.covered, 0) = 0`,
+     AND COALESCE(z.covered, 0) = 0 AND p.covered = 0`,
   );
   const moved: RainRecord['moved'] = [];
   const before = await getLastRain(db);
