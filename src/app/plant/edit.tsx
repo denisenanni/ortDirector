@@ -3,7 +3,7 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { Body, Button, Chip, ChipRow, Field, Input, PastDayPicker, Screen, Stepper, ToggleRow, useTheme } from '@/components/ui';
-import { coldWateringDefault, createPlant, deletePlant, getPlant, listZones, transplant, updatePlant, type PlantInput } from '@/lib/db';
+import { createPlant, deletePlant, getPlant, listZones, transplant, updatePlant, type PlantInput } from '@/lib/db';
 import { syncReminders } from '@/lib/notifications';
 import { PLANT_KINDS, kindFor } from '@/lib/kinds';
 import { expandPlan, planFor } from '@/lib/plans';
@@ -12,7 +12,7 @@ import { customFor } from '@/lib/custom';
 import { deletePhoto } from '@/lib/photos';
 import { sunMismatch, today as getToday } from '@/lib/schedule';
 import type { Size, Sun, Zone } from '@/lib/types';
-import { scaledWatering } from '@/lib/watering';
+import { plantWatering } from '@/lib/watering';
 import { SUN_SYMBOL } from '@/components/Icon';
 import { capitalize, cat, tr } from '@/lib/i18n';
 
@@ -31,14 +31,7 @@ const START_LABEL: Record<Start, string> = {
 const SIZES: Size[] = ['small', 'medium', 'large'];
 
 /** The catalog's watering for the plant, scaled to its size and pot; unchanged without a catalog entry. */
-function withWatering(f: PlantInput): PlantInput {
-  const entry = presetFor(f);
-  if (!entry) return f;
-  const inPlace = f.stage === 'ground';
-  const summer = inPlace ? scaledWatering(entry.waterEveryDays, f.potted, f.size, f.potSize) : entry.waterEveryDays;
-  const cold = kindFor(f.preset)?.waterColdDays ?? customFor(f.preset)?.waterColdDays ?? coldWateringDefault(summer);
-  return { ...f, waterEveryDays: summer, waterColdDays: cold };
-}
+const withWatering = (f: PlantInput): PlantInput => ({ ...f, ...plantWatering(f) });
 
 const EMPTY: PlantInput = {
   name: '',
@@ -174,7 +167,7 @@ export default function EditPlantScreen() {
       // A plant added from a file says itself whether it fears frost.
       const fearsFrost = kind ? tender : customFor(clean.preset)?.tender ?? false;
       const newId = await createPlant(db, clean, { tender: fearsFrost, young: !!kind && clean.size === 'small' });
-      if (planned) await transplant(db, newId, form.plantedOn ?? today, planned, clean.potted);
+      if (planned) await transplant(db, newId, form.plantedOn ?? today, planned, clean);
       router.replace(`/plant/${newId}`);
     } else {
       await updatePlant(db, editingId, clean);

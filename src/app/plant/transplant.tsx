@@ -6,11 +6,14 @@ import { Body, Button, Chip, ChipRow, Field, PastDayPicker, Screen, ToggleRow } 
 import { getPlant, transplant } from '@/lib/db';
 import { syncReminders } from '@/lib/notifications';
 import { expandPlan, planFor } from '@/lib/plans';
-import { presetFor, repeatLabel } from '@/lib/presets';
+import { PLANT_SIZE_LABEL, POT_SIZE_LABEL, everyDays, presetFor, repeatLabel } from '@/lib/presets';
 import { daysBetween, fromDay, today as getToday } from '@/lib/schedule';
-import type { Plant } from '@/lib/types';
+import type { Plant, Size } from '@/lib/types';
+import { plantWatering } from '@/lib/watering';
 import { TASK_SYMBOL } from '@/components/Icon';
 import { cat, locale, tr } from '@/lib/i18n';
+
+const SIZES: Size[] = ['small', 'medium', 'large'];
 
 export default function TransplantScreen() {
   const db = useSQLiteContext();
@@ -20,6 +23,9 @@ export default function TransplantScreen() {
   const [plant, setPlant] = useState<Plant | null>(null);
   const [day, setDay] = useState(today);
   const [potted, setPotted] = useState(false);
+  // A seedling going out is small; the pot is the user's guess to make.
+  const [size, setSize] = useState<Size>('small');
+  const [potSize, setPotSize] = useState<Size>('medium');
   // Plan steps (by index) the user switched off for this plant.
   const [skipped, setSkipped] = useState<Set<number>>(new Set());
 
@@ -44,9 +50,11 @@ export default function TransplantScreen() {
       return next;
     });
 
+  const watering = plantWatering({ ...plant, stage: 'ground', potted, size, potSize });
+
   const save = async () => {
     const tasks = planned.filter((t, i) => t && !skipped.has(i));
-    await transplant(db, plant.id, day, tasks, potted);
+    await transplant(db, plant.id, day, tasks, { potted, size, potSize, watering });
     syncReminders(db);
     router.back();
   };
@@ -69,6 +77,31 @@ export default function TransplantScreen() {
             <Chip label={tr('In vaso', 'In a pot')} selected={potted} onPress={() => setPotted(true)} />
           </ChipRow>
         </Field>
+
+        <Field label={tr('Quanto è grande la pianta', 'How big the plant is')}>
+          <ChipRow>
+            {SIZES.map((k) => (
+              <Chip key={k} label={PLANT_SIZE_LABEL[k]} selected={size === k} onPress={() => setSize(k)} />
+            ))}
+          </ChipRow>
+        </Field>
+        {potted ? (
+          <Field label={tr('Quanto è grande il vaso', 'How big the pot is')}>
+            <ChipRow>
+              {SIZES.map((k) => (
+                <Chip key={k} label={POT_SIZE_LABEL[k]} selected={potSize === k} onPress={() => setPotSize(k)} />
+              ))}
+            </ChipRow>
+          </Field>
+        ) : null}
+        {watering && plant.waterEveryDays ? (
+          <Body muted style={{ marginBottom: 18 }}>
+            {tr(
+              `Da maggio a settembre la annaffierai ${everyDays(watering.waterEveryDays)}.`,
+              `From May to September you’ll water it ${everyDays(watering.waterEveryDays)}.`,
+            )}
+          </Body>
+        ) : null}
 
         {plan ? (
           <Field label={tr('Attività dal piano', 'Tasks from the plan')}>
