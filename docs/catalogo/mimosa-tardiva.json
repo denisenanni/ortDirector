@@ -1,0 +1,52 @@
+{
+  "app": "ortdirector",
+  "catalog": [
+    {
+      "name": { "it": "Mimosa tardiva", "en": "Late-flowering mimosa" },
+      "aliases": ["acacia dealbata", "acacia", "silver wattle"],
+      "sun": "full",
+      "waterEveryDays": 7,
+      "waterColdDays": 21,
+      "tip": {
+        "it": "Fiorisce tra marzo e aprile. Vuole terriccio acido e acqua poco calcarea: con il calcare le foglie ingialliscono. In vaso d’estate annaffia ogni 2-3 giorni, quando la superficie è asciutta; in terra, una volta attecchita, basta poca acqua. Pota solo subito dopo la fioritura: i boccioli dell’anno dopo si formano in estate. Spesso è innestata: togli i getti che nascono sotto l’innesto.",
+        "en": "Flowers from March to April. Wants acid soil and soft water: lime turns the leaves yellow. In a pot water every 2-3 days in summer, when the surface is dry; in the ground, once settled, it needs little water. Prune only right after flowering: next year's buds form in summer. It is often grafted: remove shoots that come from below the graft."
+      },
+      "steps": [
+        { "type": "water", "title": "Annaffiare (attecchimento)", "day": 0, "every": 2, "until": 30 }
+      ],
+      "seasonal": [
+        {
+          "type": "prune",
+          "title": { "it": "Potatura dopo la fioritura (accorcia i rami che hanno fiorito)", "en": "Prune after flowering (shorten the stems that flowered)" },
+          "months": [5]
+        },
+        {
+          "type": "prune",
+          "title": { "it": "Togliere i polloni sotto l’innesto", "en": "Remove suckers below the graft" },
+          "months": [6]
+        },
+        {
+          "type": "fertilize",
+          "title": { "it": "Concimazione leggera (acidofile)", "en": "Light feed (ericaceous)" },
+          "months": [3, 4, 5, 6, 7],
+          "every": 30,
+          "only": { "potted": true }
+        },
+        {
+          "type": "check",
+          "title": { "it": "Controllo cocciniglie e afidi", "en": "Check for scale insects and aphids" },
+          "months": [4, 5, 6, 7, 8, 9],
+          "every": 30
+        },
+        { "type": "other", "title": "Controllare se serve un vaso più grande", "months": [5], "only": { "potted": true } },
+        {
+          "type": "other",
+          "title": { "it": "Proteggere il vaso dal gelo forte (sotto i -5 °C)", "en": "Protect the pot from hard frost (below -5 °C)" },
+          "months": [12],
+          "only": { "potted": true }
+        },
+        { "type": "other", "title": "Pacciamare la base contro il gelo", "months": [11], "only": { "potted": false } }
+      ]
+    }
+  ]
+}

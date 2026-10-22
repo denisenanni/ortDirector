@@ -1,5 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { BACKUP_TABLES, insertFor, makeBackup, type Backup, type Row } from './backup';
+import { parseCatalogEntry } from './catalogFile';
+import { customEntries, customFor, setCustomCatalog, type CustomEntry } from './custom';
 import { kindFor } from './kinds';
 import { planFor, regularWateringFrom, seasonalTasks, transplantReminder, type CareContext, type PlannedTask } from './plans';
 import { local, tr } from './i18n';
@@ -8,13 +10,13 @@ import { afterRain, completeTask, today } from './schedule';
 import type { DayString, DoneEntry, LogEntry, Plant, Stage, Sun, Task, TaskType, TaskWithPlant, Zone } from './types';
 
 export const DATABASE_NAME = 'ortdirector.db';
-export const DATABASE_VERSION = 5;
+export const DATABASE_VERSION = 6;
 
 export async function migrate(db: SQLiteDatabase) {
   await db.execAsync('PRAGMA foreign_keys = ON;');
   const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
   let version = row?.user_version ?? 0;
-  if (version >= DATABASE_VERSION) return;
+  if (version >= DATABASE_VERSION) return loadCatalog(db);
 
   if (version === 0) {
     await db.execAsync(`
@@ -132,8 +134,14 @@ export async function migrate(db: SQLiteDatabase) {
     }
     version = 5;
   }
-  // Future migrations: if (version === 5) { ...; version = 6; }
+  if (version === 5) {
+    // Plants added to the catalog from a file: the file's object, as written.
+    await db.execAsync(`CREATE TABLE catalog (name TEXT PRIMARY KEY NOT NULL, entry TEXT NOT NULL);`);
+    version = 6;
+  }
+  // Future migrations: if (version === 6) { ...; version = 7; }
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
+  await loadCatalog(db);
 }
 
 /** A starting guess for the rest of the year: a third as often as in summer, at most every 3 weeks. */
@@ -391,7 +399,7 @@ export async function restorePlant(db: SQLiteDatabase, id: number) {
     await db.runAsync('UPDATE plants SET archived_on = NULL WHERE id = ?', id);
     if (p.waterEveryDays) await insertWaterTask(db, id, p);
     // Whether it fears frost isn't saved: the kind's usual answer.
-    const care = { potted: p.potted, tender: kindFor(p.preset)?.tender ?? false };
+    const care = { potted: p.potted, tender: kindFor(p.preset)?.tender ?? customFor(p.preset)?.tender ?? false };
     for (const t of seasonalTasks(planFor(presetFor(p)?.name), today(), care)) await insertTask(db, id, t);
   });
 }
@@ -633,6 +641,47 @@ export async function deleteZone(db: SQLiteDatabase, id: number) {
   await db.runAsync('DELETE FROM zones WHERE id = ?', id);
 }
 
+// --- Catalog added from files ------------------------------------------------
+
+/** Reads the added plants into the catalog. A row that no longer checks out is skipped, not fatal. */
+export async function loadCatalog(db: SQLiteDatabase) {
+  const rows = await db.getAllAsync<{ name: string; entry: string }>('SELECT * FROM catalog ORDER BY name COLLATE NOCASE');
+  const entries: CustomEntry[] = [];
+  for (const r of rows) {
+    try {
+      entries.push(parseCatalogEntry(JSON.parse(r.entry)));
+    } catch (e) {
+      console.warn(`Catalog entry ${r.name} skipped: ${(e as Error).message}`);
+    }
+  }
+  setCustomCatalog(entries);
+}
+
+/** Adds the plants to the catalog; one with the name of an added plant replaces it. */
+export async function addToCatalog(
+  db: SQLiteDatabase,
+  items: { entry: CustomEntry; raw: unknown }[],
+): Promise<{ added: string[]; replaced: string[] }> {
+  const known = new Set(customEntries().map((e) => e.name));
+  await db.withTransactionAsync(async () => {
+    for (const { entry, raw } of items) {
+      await db.runAsync(
+        'INSERT INTO catalog (name, entry) VALUES (?, ?) ON CONFLICT(name) DO UPDATE SET entry = excluded.entry',
+        entry.name, JSON.stringify(raw),
+      );
+    }
+  });
+  await loadCatalog(db);
+  const names = items.map((i) => i.entry.name);
+  return { added: names.filter((n) => !known.has(n)), replaced: names.filter((n) => known.has(n)) };
+}
+
+/** Takes an added plant out of the catalog. Plants created from it keep their tasks. */
+export async function removeFromCatalog(db: SQLiteDatabase, name: string) {
+  await db.runAsync('DELETE FROM catalog WHERE name = ?', name);
+  await loadCatalog(db);
+}
+
 // --- Backup ----------------------------------------------------------------
 
 export async function exportBackup(db: SQLiteDatabase): Promise<Backup> {
@@ -659,6 +708,7 @@ export async function importBackup(db: SQLiteDatabase, backup: Backup) {
       }
     }
   });
+  await loadCatalog(db);
 }
 
 export async function getLastBackup(db: SQLiteDatabase): Promise<DayString | null> {

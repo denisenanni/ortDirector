@@ -1,10 +1,12 @@
 // Two languages, Italian and English: the phone's, or the one picked in
 // Impostazioni (src/lib/locale.ts). Strings stay inline as tr('italiano', 'English')
 // so each screen reads in both languages at once. Catalog text (plant names,
-// tips, plan steps) is written in Italian and translated through CATALOG_EN.
+// tips, plan steps) is written in Italian and translated through CATALOG_EN,
+// or through the English of plants added from a file (custom.ts).
 // Pure logic, no React Native imports, so it runs under `node --test`.
 import { useSyncExternalStore } from 'react';
 import { CATALOG_EN } from './catalog-en.ts';
+import { customEnglish, customGeneration } from './custom.ts';
 
 export type Lang = 'it' | 'en';
 
@@ -46,7 +48,7 @@ export function tr(it: string, en: string): string {
 
 /** Catalog text, written in Italian, in the app's language. Unknown text comes back as is. */
 export function cat(text: string): string {
-  return current === 'en' ? (CATALOG_EN[text] ?? text) : text;
+  return current === 'en' ? (CATALOG_EN[text] ?? customEnglish()[text] ?? text) : text;
 }
 
 // Titles the app itself saves with tasks and history, beyond the catalog.
@@ -64,6 +66,7 @@ const SAVED_EN: Record<string, string> = {
   'Messa nel vaso definitivo': 'Potted up',
 };
 let toItalian: Record<string, string> | null = null;
+let toItalianGeneration = -1;
 
 /**
  * Text saved in the database in either language (plant names from the
@@ -71,10 +74,11 @@ let toItalian: Record<string, string> | null = null;
  * user typed matches nothing and comes back as is.
  */
 export function local(text: string): string {
-  if (current === 'en') return SAVED_EN[text] ?? CATALOG_EN[text] ?? text;
-  if (!toItalian) {
+  if (current === 'en') return SAVED_EN[text] ?? CATALOG_EN[text] ?? customEnglish()[text] ?? text;
+  if (!toItalian || toItalianGeneration !== customGeneration()) {
     toItalian = {};
-    for (const map of [CATALOG_EN, SAVED_EN]) {
+    toItalianGeneration = customGeneration();
+    for (const map of [CATALOG_EN, SAVED_EN, customEnglish()]) {
       for (const [it, en] of Object.entries(map)) toItalian[en] ??= it;
     }
   }

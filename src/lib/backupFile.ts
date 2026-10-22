@@ -1,4 +1,4 @@
-// Saving and opening backup files. On the phone the file goes through the
+// Saving backup files, and opening backup and catalog files. On the phone the file goes through the
 // share sheet (Save to Files, iCloud Drive, AirDrop…); in the web preview it
 // downloads.
 import * as DocumentPicker from 'expo-document-picker';
@@ -27,7 +27,7 @@ export async function saveBackupFile(backup: Backup): Promise<void> {
 }
 
 /** The text of a file the user picks, or null if they cancel. */
-export async function pickBackupFile(): Promise<string | null> {
+export async function pickJsonFile(): Promise<string | null> {
   // Any file: iOS doesn't always tag .json files from iCloud Drive as JSON.
   const res = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true });
   if (res.canceled) return null;

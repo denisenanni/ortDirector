@@ -7,7 +7,8 @@ import { coldWateringDefault, createPlant, deletePlant, getPlant, listZones, tra
 import { syncReminders } from '@/lib/notifications';
 import { PLANT_KINDS, kindFor, kindWatering, type Size } from '@/lib/kinds';
 import { expandPlan, planFor } from '@/lib/plans';
-import { PLANT_PRESETS, SUN_LABEL, everyDays, isAnnual, presetFor, searchPresets } from '@/lib/presets';
+import { SUN_LABEL, catalog, everyDays, isAnnual, presetFor, searchPresets } from '@/lib/presets';
+import { customFor } from '@/lib/custom';
 import { deletePhoto } from '@/lib/photos';
 import { sunMismatch, today as getToday } from '@/lib/schedule';
 import type { Sun, Zone } from '@/lib/types';
@@ -98,7 +99,7 @@ export default function EditPlantScreen() {
       setTip(null);
       return;
     }
-    const preset = PLANT_PRESETS.find((p) => p.name === name)!;
+    const preset = catalog().find((p) => p.name === name)!;
     setForm((f) => ({
       ...f,
       name: cat(preset.name),
@@ -106,7 +107,7 @@ export default function EditPlantScreen() {
       annual: isAnnual(preset.name),
       sun: preset.sun,
       waterEveryDays: preset.waterEveryDays,
-      waterColdDays: coldWateringDefault(preset.waterEveryDays),
+      waterColdDays: customFor(preset.name)?.waterColdDays ?? coldWateringDefault(preset.waterEveryDays),
     }));
     // The search box shows what was picked, like an autocomplete.
     setQuery(cat(preset.name));
@@ -139,7 +140,7 @@ export default function EditPlantScreen() {
 
   const plan = planFor(presetFor(form)?.name);
   const matches = searchPresets(query).slice(0, 12);
-  const chosen = form.preset ? PLANT_PRESETS.find((p) => p.name === form.preset) : undefined;
+  const chosen = form.preset ? catalog().find((p) => p.name === form.preset) : undefined;
   const zone = zones.find((z) => z.id === form.zoneId);
   const mismatch = zone ? sunMismatch(form.sun, zone.sun) : null;
 
@@ -165,7 +166,9 @@ export default function EditPlantScreen() {
       // flood Oggi.
       const planned = clean.stage === 'ground' && plan ? expandPlan(plan.steps, clean.plantedOn!, today) : null;
       if (planned) Object.assign(clean, { stage: 'seedbed', plantedOn: null });
-      const newId = await createPlant(db, clean, { tender: !!kind && tender, young: !!kind && size === 'small' });
+      // A plant added from a file says itself whether it fears frost.
+      const fearsFrost = kind ? tender : customFor(clean.preset)?.tender ?? false;
+      const newId = await createPlant(db, clean, { tender: fearsFrost, young: !!kind && size === 'small' });
       if (planned) await transplant(db, newId, form.plantedOn ?? today, planned, clean.potted);
       router.replace(`/plant/${newId}`);
     } else {
