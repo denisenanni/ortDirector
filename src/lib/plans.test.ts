@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PLANS, expandPlan, regularWateringFrom, seasonalTasks, transplantReminder } from './plans.ts';
 import { PLANT_KINDS } from './kinds.ts';
-import { scaledWatering } from './watering.ts';
+import { plantWatering, scaledWatering } from './watering.ts';
 import { PLANT_PRESETS, isAnnual, presetFor } from './presets.ts';
 
 test('every catalog plant has a plan, and every plan a catalog plant', () => {
@@ -141,6 +141,17 @@ test('watering follows the plant against its pot', () => {
   assert.equal(scaledWatering(7, true, 'small', 'large'), 6);
   assert.equal(scaledWatering(1, true, 'large', 'small'), 1);
   assert.equal(scaledWatering(60, false, 'large', null), 60);
+});
+
+test('a plant’s watering starts from its catalog entry', () => {
+  const base = { name: 'Rosa', preset: 'Rosa', stage: 'ground' as const, potted: false, size: null, potSize: null };
+  assert.deepEqual(plantWatering(base), { waterEveryDays: 3, waterColdDays: 9 });
+  assert.deepEqual(plantWatering({ ...base, potted: true, size: 'large', potSize: 'small' }), { waterEveryDays: 1, waterColdDays: 3 });
+  // Kinds keep their own winter interval; seedlings aren't scaled.
+  const cactus = { ...base, name: 'Echeveria', preset: 'Succulenta o cactus', size: 'small' as const };
+  assert.deepEqual(plantWatering(cactus), { waterEveryDays: 7, waterColdDays: 30 });
+  assert.equal(plantWatering({ ...base, stage: 'seedbed', size: 'small' })?.waterEveryDays, 3);
+  assert.equal(plantWatering({ ...base, name: 'Feijoa', preset: null }), null);
 });
 
 test('kinds are perennial unless annual, and found only as a preset', () => {

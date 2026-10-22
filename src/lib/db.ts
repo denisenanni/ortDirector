@@ -7,6 +7,7 @@ import { planFor, regularWateringFrom, seasonalTasks, transplantReminder, type C
 import { local, tr } from './i18n';
 import { isAnnual, presetFor } from './presets';
 import { afterRain, completeTask, today } from './schedule';
+import { coldWateringDefault } from './watering';
 import type { DayString, DoneEntry, LogEntry, Plant, Size, Stage, Sun, Task, TaskType, TaskWithPlant, Zone } from './types';
 
 export const DATABASE_NAME = 'ortdirector.db';
@@ -149,8 +150,7 @@ export async function migrate(db: SQLiteDatabase) {
   await loadCatalog(db);
 }
 
-/** A starting guess for the rest of the year: a third as often as in summer, at most every 3 weeks. */
-export const coldWateringDefault = (summer: number) => Math.min(summer * 3, 21);
+export { coldWateringDefault };
 
 // --- Row mapping -----------------------------------------------------------
 
@@ -339,6 +339,14 @@ async function insertWaterTask(db: SQLiteDatabase, plantId: number, p: PlantInpu
   );
 }
 
+/** Where a plant goes when it's transplanted, and the watering that comes with it if it changes. */
+export interface Placement {
+  potted: boolean;
+  size: Size | null;
+  potSize: Size | null;
+  watering?: { waterEveryDays: number; waterColdDays: number } | null;
+}
+
 /**
  * Puts the plant in its final spot on `day`: closes its "ready to transplant"
  * reminder, logs the transplant and creates the chosen plan tasks. Regular
@@ -349,8 +357,9 @@ export async function transplant(
   plantId: number,
   day: DayString,
   tasks: PlannedTask[],
-  potted: boolean,
+  place: Placement,
 ) {
+  const { potted } = place;
   const plant = await getPlant(db, plantId);
   if (!plant) return;
   const plan = planFor(presetFor(plant)?.name);
@@ -358,9 +367,18 @@ export async function transplant(
   const waterFrom = plan && establishing ? regularWateringFrom(plan.steps, day) : null;
   await db.withTransactionAsync(async () => {
     await db.runAsync(
-      `UPDATE plants SET stage = 'ground', planted_on = ?, potted = ? WHERE id = ?`,
-      day, potted ? 1 : 0, plantId,
+      `UPDATE plants SET stage = 'ground', planted_on = ?, potted = ?, size = ?, pot_size = ? WHERE id = ?`,
+      day, potted ? 1 : 0, place.size, potted ? place.potSize : null, plantId,
     );
+    if (place.watering && plant.waterEveryDays) {
+      const { waterEveryDays, waterColdDays } = place.watering;
+      await db.runAsync('UPDATE plants SET water_every_days = ?, water_cold_days = ? WHERE id = ?', waterEveryDays, waterColdDays, plantId);
+      await db.runAsync(
+        `UPDATE tasks SET repeat_days = ?, cold_repeat_days = ? WHERE plant_id = ? AND type = 'water'
+         AND repeat_days IS NOT NULL AND ends_on IS NULL AND done_on IS NULL`,
+        waterEveryDays, waterColdDays, plantId,
+      );
+    }
     await db.runAsync(
       `UPDATE tasks SET done_on = ? WHERE plant_id = ? AND type = 'transplant' AND done_on IS NULL`,
       day, plantId,
