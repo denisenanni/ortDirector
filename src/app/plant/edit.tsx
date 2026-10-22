@@ -5,12 +5,14 @@ import { Alert, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-n
 import { Body, Button, Chip, ChipRow, Field, Input, PastDayPicker, Screen, Stepper, ToggleRow, useTheme } from '@/components/ui';
 import { coldWateringDefault, createPlant, deletePlant, getPlant, listZones, transplant, updatePlant, type PlantInput } from '@/lib/db';
 import { syncReminders } from '@/lib/notifications';
-import { PLANT_KINDS, kindFor, kindWatering, type Size } from '@/lib/kinds';
+import { PLANT_KINDS, kindFor } from '@/lib/kinds';
 import { expandPlan, planFor } from '@/lib/plans';
-import { PLANT_PRESETS, SUN_LABEL, everyDays, isAnnual, presetFor, searchPresets } from '@/lib/presets';
+import { PLANT_SIZE_LABEL, POT_SIZE_LABEL, SUN_LABEL, catalog, everyDays, isAnnual, presetFor, searchPresets } from '@/lib/presets';
+import { customFor } from '@/lib/custom';
 import { deletePhoto } from '@/lib/photos';
 import { sunMismatch, today as getToday } from '@/lib/schedule';
-import type { Sun, Zone } from '@/lib/types';
+import type { Size, Sun, Zone } from '@/lib/types';
+import { scaledWatering } from '@/lib/watering';
 import { SUN_SYMBOL } from '@/components/Icon';
 import { capitalize, cat, tr } from '@/lib/i18n';
 
@@ -26,11 +28,17 @@ const START_LABEL: Record<Start, string> = {
   get potted() { return tr('In vaso', 'In a pot'); },
 };
 
-const SIZE_LABEL: Record<Size, string> = {
-  get small() { return tr('Giovane o piccola', 'Young or small'); },
-  get medium() { return tr('Media', 'Medium'); },
-  get large() { return tr('Grande, adulta', 'Large, mature'); },
-};
+const SIZES: Size[] = ['small', 'medium', 'large'];
+
+/** The catalog's watering for the plant, scaled to its size and pot; unchanged without a catalog entry. */
+function withWatering(f: PlantInput): PlantInput {
+  const entry = presetFor(f);
+  if (!entry) return f;
+  const inPlace = f.stage === 'ground';
+  const summer = inPlace ? scaledWatering(entry.waterEveryDays, f.potted, f.size, f.potSize) : entry.waterEveryDays;
+  const cold = kindFor(f.preset)?.waterColdDays ?? customFor(f.preset)?.waterColdDays ?? coldWateringDefault(summer);
+  return { ...f, waterEveryDays: summer, waterColdDays: cold };
+}
 
 const EMPTY: PlantInput = {
   name: '',
@@ -38,6 +46,8 @@ const EMPTY: PlantInput = {
   location: null,
   zoneId: null,
   potted: false,
+  size: 'medium',
+  potSize: 'medium',
   sun: 'full',
   waterEveryDays: 3,
   waterColdDays: 9,
@@ -61,7 +71,6 @@ export default function EditPlantScreen() {
   const [start, setStart] = useState<Start>('ground');
   const [zones, setZones] = useState<Zone[]>([]);
   // For a plant outside the catalog, created from a kind.
-  const [size, setSize] = useState<Size>('medium');
   const [tender, setTender] = useState(false);
   const t = useTheme();
   const today = getToday();
@@ -91,6 +100,8 @@ export default function EditPlantScreen() {
 
   const set = <K extends keyof PlantInput>(key: K, value: PlantInput[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
+  /** Changes what decides the watering (start, size, pot), and recomputes it. */
+  const setWatering = (patch: Partial<PlantInput>) => setForm((f) => withWatering({ ...f, ...patch }));
 
   const applyPreset = (name: string) => {
     if (form.preset === name) {
@@ -98,16 +109,10 @@ export default function EditPlantScreen() {
       setTip(null);
       return;
     }
-    const preset = PLANT_PRESETS.find((p) => p.name === name)!;
-    setForm((f) => ({
-      ...f,
-      name: cat(preset.name),
-      preset: preset.name,
-      annual: isAnnual(preset.name),
-      sun: preset.sun,
-      waterEveryDays: preset.waterEveryDays,
-      waterColdDays: coldWateringDefault(preset.waterEveryDays),
-    }));
+    const preset = catalog().find((p) => p.name === name)!;
+    setForm((f) =>
+      withWatering({ ...f, name: cat(preset.name), preset: preset.name, annual: isAnnual(preset.name), sun: preset.sun }),
+    );
     // The search box shows what was picked, like an autocomplete.
     setQuery(cat(preset.name));
     setTip(cat(preset.tip));
@@ -120,26 +125,24 @@ export default function EditPlantScreen() {
       return;
     }
     const k = kindFor(name)!;
-    setForm((f) => ({ ...f, preset: k.name, annual: !!k.annual, sun: k.sun }));
+    setForm((f) => withWatering({ ...f, preset: k.name, annual: !!k.annual, sun: k.sun }));
     setTender(k.tender);
     setTip(cat(k.tip));
   };
 
   const kind = editingId === null ? kindFor(form.preset) : undefined;
-  // A kind's watering follows the pot and the size, until the user changes it by hand below.
-  useEffect(() => {
-    if (!kind) return;
-    const summer = kindWatering(kind, start === 'potted', size);
-    setForm((f) => ({
-      ...f,
-      waterEveryDays: summer,
-      waterColdDays: kind.waterColdDays ?? coldWateringDefault(summer),
-    }));
-  }, [kind, start, size]);
+
+  // A new plant's stage and pot follow how it starts out.
+  const changeStart = (s: Start) => {
+    setStart(s);
+    setWatering({ stage: s === 'ground' || s === 'potted' ? 'ground' : 'seedbed', potted: s === 'potted' });
+  };
+  const inPlace = editingId === null ? start === 'ground' || start === 'potted' : form.stage === 'ground';
+  const potted = editingId === null ? start === 'potted' : form.potted;
 
   const plan = planFor(presetFor(form)?.name);
   const matches = searchPresets(query).slice(0, 12);
-  const chosen = form.preset ? PLANT_PRESETS.find((p) => p.name === form.preset) : undefined;
+  const chosen = form.preset ? catalog().find((p) => p.name === form.preset) : undefined;
   const zone = zones.find((z) => z.id === form.zoneId);
   const mismatch = zone ? sunMismatch(form.sun, zone.sun) : null;
 
@@ -151,6 +154,9 @@ export default function EditPlantScreen() {
       location: form.location?.trim() || null,
       notes: form.notes?.trim() || null,
     };
+    // A seedling's size changes before it's planted out; a pot has a size only when there is one.
+    if (!inPlace) Object.assign(clean, { size: null, potSize: null });
+    if (!potted) clean.potSize = null;
     if (editingId === null) {
       clean.potted = start === 'potted';
       if (start === 'sown') {
@@ -165,7 +171,9 @@ export default function EditPlantScreen() {
       // flood Oggi.
       const planned = clean.stage === 'ground' && plan ? expandPlan(plan.steps, clean.plantedOn!, today) : null;
       if (planned) Object.assign(clean, { stage: 'seedbed', plantedOn: null });
-      const newId = await createPlant(db, clean, { tender: !!kind && tender, young: !!kind && size === 'small' });
+      // A plant added from a file says itself whether it fears frost.
+      const fearsFrost = kind ? tender : customFor(clean.preset)?.tender ?? false;
+      const newId = await createPlant(db, clean, { tender: fearsFrost, young: !!kind && clean.size === 'small' });
       if (planned) await transplant(db, newId, form.plantedOn ?? today, planned, clean.potted);
       router.replace(`/plant/${newId}`);
     } else {
@@ -245,13 +253,8 @@ export default function EditPlantScreen() {
           )}
 
           {kind ? (
-            <Field label={tr('Quanto è grande', 'How big it is')}>
-              <ChipRow>
-                {(Object.keys(SIZE_LABEL) as Size[]).map((k) => (
-                  <Chip key={k} label={SIZE_LABEL[k]} selected={size === k} onPress={() => setSize(k)} />
-                ))}
-              </ChipRow>
-              <View style={{ marginTop: 12 }}>
+            <Field label={tr('Gelo', 'Frost')}>
+              <View>
                 <ToggleRow
                   label={tr('Teme il gelo', 'Fears frost')}
                   detail={tr(
@@ -269,7 +272,7 @@ export default function EditPlantScreen() {
             <Field label={tr('Com’è adesso', 'Where it is now')}>
               <ChipRow>
                 {(Object.keys(START_LABEL) as Start[]).map((k) => (
-                  <Chip key={k} label={START_LABEL[k]} selected={start === k} onPress={() => setStart(k)} />
+                  <Chip key={k} label={START_LABEL[k]} selected={start === k} onPress={() => changeStart(k)} />
                 ))}
               </ChipRow>
               {start === 'sown' && plan?.sowToTransplantWeeks ? (
@@ -294,8 +297,31 @@ export default function EditPlantScreen() {
           {editingId !== null && form.stage === 'ground' ? (
             <Field label={tr('Dove', 'Where')}>
               <ChipRow>
-                <Chip icon="ground" label={tr('In terra', 'In the ground')} selected={!form.potted} onPress={() => set('potted', false)} />
-                <Chip label={tr('In vaso', 'In a pot')} selected={form.potted} onPress={() => set('potted', true)} />
+                <Chip icon="ground" label={tr('In terra', 'In the ground')} selected={!form.potted} onPress={() => setWatering({ potted: false })} />
+                <Chip
+                  label={tr('In vaso', 'In a pot')}
+                  selected={form.potted}
+                  onPress={() => setWatering({ potted: true, potSize: form.potSize ?? 'medium' })}
+                />
+              </ChipRow>
+            </Field>
+          ) : null}
+
+          {inPlace ? (
+            <Field label={tr('Quanto è grande la pianta', 'How big the plant is')}>
+              <ChipRow>
+                {SIZES.map((k) => (
+                  <Chip key={k} label={PLANT_SIZE_LABEL[k]} selected={form.size === k} onPress={() => setWatering({ size: k })} />
+                ))}
+              </ChipRow>
+            </Field>
+          ) : null}
+          {inPlace && potted ? (
+            <Field label={tr('Quanto è grande il vaso', 'How big the pot is')}>
+              <ChipRow>
+                {SIZES.map((k) => (
+                  <Chip key={k} label={POT_SIZE_LABEL[k]} selected={form.potSize === k} onPress={() => setWatering({ potSize: k })} />
+                ))}
               </ChipRow>
             </Field>
           ) : null}
@@ -348,6 +374,13 @@ export default function EditPlantScreen() {
               allowOff={tr('Nessun promemoria', 'No reminder')}
               format={(v) => capitalize(everyDays(v))}
             />
+            {inPlace && presetFor(form) ? (
+              <Body muted style={{ marginTop: 8 }}>
+                {potted
+                  ? tr('Calcolata dal catalogo, dalla pianta e dal vaso. Puoi cambiarla.', 'Worked out from the catalog, the plant and its pot. You can change it.')
+                  : tr('Calcolata dal catalogo e dalla taglia della pianta. Puoi cambiarla.', 'Worked out from the catalog and the plant’s size. You can change it.')}
+              </Body>
+            ) : null}
           </Field>
           {form.waterEveryDays ? (
             <Field label={tr('Irrigazione nel resto dell’anno', 'Watering the rest of the year')}>

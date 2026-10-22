@@ -24,7 +24,7 @@ import { confirm, notify } from '@/lib/dialogs';
 import { syncReminders } from '@/lib/notifications';
 import { CameraPermissionError, deletePhoto, photoUri, takePhoto } from '@/lib/photos';
 import { planFor } from '@/lib/plans';
-import { SUN_LABEL, everyDays, presetFor } from '@/lib/presets';
+import { POT_LABEL, SUN_LABEL, everyDays, presetFor } from '@/lib/presets';
 import { daysBetween, fromDay, pastLabel, sunMismatch, today as getToday } from '@/lib/schedule';
 import type { LogEntry, Plant, TaskWithPlant, Zone } from '@/lib/types';
 import { capitalize, cat, locale, tr } from '@/lib/i18n';
@@ -260,7 +260,7 @@ export default function PlantScreen() {
                 label={waterLabel(plant)}
               />
             ) : null}
-            {plant.potted ? <Pill label={tr('In vaso', 'In a pot')} /> : null}
+            {plant.potted ? <Pill label={plant.potSize ? POT_LABEL[plant.potSize] : tr('In vaso', 'In a pot')} /> : null}
             <Pill label={plant.annual ? tr('Annuale', 'Annual') : tr('Perenne', 'Perennial')} />
           </PillRow>
         </View>

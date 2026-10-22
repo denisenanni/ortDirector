@@ -1,6 +1,7 @@
 // Care plans from the catalog: what to do after a plant goes into its final
 // spot, counted from that day. Pure logic, no React Native imports, so it runs
 // under `node --test` (see plans.test.ts).
+import { customFor } from './custom.ts';
 import { cat, tr } from './i18n.ts';
 import { addDays, nextInSeason } from './schedule.ts';
 import type { DayString, TaskType } from './types';
@@ -494,7 +495,8 @@ export const PLANS: Record<string, CropPlan> = {
 };
 
 export function planFor(presetName: string | undefined): CropPlan | undefined {
-  return presetName ? PLANS[presetName] : undefined;
+  if (!presetName) return undefined;
+  return Object.prototype.hasOwnProperty.call(PLANS, presetName) ? PLANS[presetName] : customFor(presetName)?.plan;
 }
 
 export interface PlannedTask {

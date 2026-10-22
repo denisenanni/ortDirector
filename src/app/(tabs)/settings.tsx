@@ -1,23 +1,28 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
-import { Alert, Linking, Platform, ScrollView } from 'react-native';
+import { Alert, Linking, Platform, ScrollView, View } from 'react-native';
 import * as Notifications from 'expo-notifications';
-import { Body, Button, Card, Chip, ChipRow, Field, LargeHeader, Screen, SectionHeader, Stepper, useTheme } from '@/components/ui';
+import { Body, Button, Card, Chip, ChipRow, Field, IconButton, LargeHeader, Screen, SectionHeader, Stepper, useTheme } from '@/components/ui';
 import { parseBackup } from '@/lib/backup';
-import { pickBackupFile, saveBackupFile } from '@/lib/backupFile';
+import { parseCatalogFile } from '@/lib/catalogFile';
+import { customEntries } from '@/lib/custom';
+import { confirm } from '@/lib/dialogs';
+import { pickJsonFile, saveBackupFile } from '@/lib/backupFile';
 import {
   DATABASE_VERSION,
+  addToCatalog,
   exportBackup,
   getLastBackup,
   getReminderHour,
   importBackup,
+  removeFromCatalog,
   setLastBackup,
   setReminderHour,
 } from '@/lib/db';
 import { fromDay, today } from '@/lib/schedule';
 import { ensurePermission, syncReminders } from '@/lib/notifications';
-import { locale, tr } from '@/lib/i18n';
+import { cat, locale, tr } from '@/lib/i18n';
 import { chooseLanguage, languageChoice, type LanguageChoice } from '@/lib/locale';
 
 export default function SettingsScreen() {
@@ -26,6 +31,8 @@ export default function SettingsScreen() {
   const [granted, setGranted] = useState<boolean | null>(null);
   const [lastBackup, setLast] = useState<string | null>(null);
   const [backupNote, setBackupNote] = useState<{ text: string; error?: boolean } | null>(null);
+  const [added, setAdded] = useState(customEntries);
+  const [catalogNote, setCatalogNote] = useState<{ text: string; error?: boolean } | null>(null);
   const t = useTheme();
   const [choice, setChoice] = useState(languageChoice);
 
@@ -74,7 +81,7 @@ export default function SettingsScreen() {
   const doImport = async () => {
     let text: string | null;
     try {
-      text = await pickBackupFile();
+      text = await pickJsonFile();
     } catch (e) {
       setBackupNote({ text: tr('Non riesco a leggere il file: ', 'Can’t read the file: ') + (e as Error).message, error: true });
       return;
@@ -97,6 +104,7 @@ export default function SettingsScreen() {
       setBackupNote({ text: tr(`Backup importato: ${summary}.`, `Backup imported: ${summary}.`) });
       getReminderHour(db).then(setHour);
       getLastBackup(db).then(setLast);
+      setAdded(customEntries());
       syncReminders(db);
     };
     const question = tr(
@@ -111,6 +119,43 @@ export default function SettingsScreen() {
       { text: tr('Annulla', 'Cancel'), style: 'cancel' },
       { text: tr('Sostituisci', 'Replace'), style: 'destructive', onPress: run },
     ]);
+  };
+
+  const doCatalogImport = async () => {
+    let items;
+    try {
+      const text = await pickJsonFile();
+      if (text === null) return;
+      items = parseCatalogFile(text);
+    } catch (e) {
+      setCatalogNote({ text: (e as Error).message, error: true });
+      return;
+    }
+    const { added: fresh, replaced } = await addToCatalog(db, items);
+    setAdded(customEntries());
+    const names = (list: string[]) => list.map(cat).join(', ');
+    setCatalogNote({
+      text: [
+        fresh.length ? tr(`Aggiunte al catalogo: ${names(fresh)}.`, `Added to the catalog: ${names(fresh)}.`) : '',
+        replaced.length ? tr(`Aggiornate: ${names(replaced)}.`, `Updated: ${names(replaced)}.`) : '',
+      ].filter(Boolean).join(' '),
+    });
+  };
+
+  const removeAdded = async (name: string) => {
+    const ok = await confirm(
+      tr(`Togliere “${cat(name)}” dal catalogo?`, `Remove “${cat(name)}” from the catalog?`),
+      tr(
+        'Le piante già create da questa voce restano, con le loro attività.',
+        'Plants already created from it stay, with their tasks.',
+      ),
+      tr('Togli', 'Remove'),
+      true,
+    );
+    if (!ok) return;
+    await removeFromCatalog(db, name);
+    setAdded(customEntries());
+    setCatalogNote(null);
   };
 
   return (
@@ -156,12 +201,31 @@ export default function SettingsScreen() {
             </>
           )}
         </Card>
+        <SectionHeader>{tr('Catalogo', 'Catalog')}</SectionHeader>
+        <Card>
+          <Body muted>
+            {tr(
+              'Aggiungi al catalogo piante che non ci sono, con le loro cure, da un file JSON. Si aggiungono a quelle che hai: non cancella niente.',
+              'Add plants that aren’t in the catalog, with their care, from a JSON file. They go on top of what you have: nothing is deleted.',
+            )}
+          </Body>
+          {added.map((e) => (
+            <View key={e.name} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 12 }}>
+              <Body style={{ flex: 1 }}>{cat(e.name)}</Body>
+              <IconButton icon="close" tone="neutral" label={tr('Togli dal catalogo', 'Remove from the catalog')} onPress={() => removeAdded(e.name)} />
+            </View>
+          ))}
+          <Button kind="secondary" label={tr('Aggiungi piante da file', 'Add plants from a file')} onPress={doCatalogImport} />
+          {catalogNote ? (
+            <Body style={{ marginTop: 8, color: catalogNote.error ? t.danger : t.muted }}>{catalogNote.text}</Body>
+          ) : null}
+        </Card>
         <SectionHeader>Backup</SectionHeader>
         <Card>
           <Body muted>
             {tr(
-              'I dati restano solo su questo telefono: se lo perdi, perdi tutto. Esporta un backup ogni tanto e salvalo su iCloud Drive o dove vuoi. Le foto delle piante non sono nel backup.',
-              'Your data stays on this phone only: lose the phone and you lose everything. Export a backup now and then and keep it on iCloud Drive or wherever you like. Plant photos are not in the backup.',
+              'I dati restano solo su questo telefono: se lo perdi, perdi tutto. Esporta un backup ogni tanto e salvalo su iCloud Drive o dove vuoi. Le piante aggiunte al catalogo sono nel backup, le foto no.',
+              'Your data stays on this phone only: lose the phone and you lose everything. Export a backup now and then and keep it on iCloud Drive or wherever you like. Plants added to the catalog are in the backup, photos are not.',
             )}
           </Body>
           {lastBackup ? (

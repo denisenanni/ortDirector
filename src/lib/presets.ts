@@ -1,7 +1,8 @@
 import { cat, days, language, tr } from './i18n.ts';
 import { CATALOG_EN } from './catalog-en.ts';
+import { customEnglish, customEntries, customFor } from './custom.ts';
 import { PLANT_KINDS } from './kinds.ts';
-import type { Sun, TaskType } from './types';
+import type { Size, Sun, TaskType } from './types';
 
 export interface PlantPreset {
   name: string;
@@ -63,6 +64,25 @@ export const SUN_LABEL: Record<Sun, string> = {
   get full() { return tr('Pieno sole', 'Full sun'); },
   get partial() { return tr('Mezz’ombra', 'Part shade'); },
   get shade() { return tr('Ombra', 'Shade'); },
+};
+
+export const PLANT_SIZE_LABEL: Record<Size, string> = {
+  get small() { return tr('Piccola o giovane', 'Small or young'); },
+  get medium() { return tr('Media', 'Medium'); },
+  get large() { return tr('Grande, adulta', 'Large, mature'); },
+};
+
+export const POT_SIZE_LABEL: Record<Size, string> = {
+  get small() { return tr('Piccolo, fino a 20 cm', 'Small, up to 20 cm'); },
+  get medium() { return tr('Medio, 20-40 cm', 'Medium, 20-40 cm'); },
+  get large() { return tr('Grande, oltre 40 cm', 'Large, over 40 cm'); },
+};
+
+/** "Vaso piccolo", for the plant's page. */
+export const POT_LABEL: Record<Size, string> = {
+  get small() { return tr('Vaso piccolo', 'Small pot'); },
+  get medium() { return tr('Vaso medio', 'Medium pot'); },
+  get large() { return tr('Vaso grande', 'Large pot'); },
 };
 
 export const SUN_ICON: Record<Sun, string> = {
@@ -153,6 +173,8 @@ const PERENNIALS = new Set([
 ]);
 
 export function isAnnual(presetName: string | undefined): boolean {
+  const custom = customFor(presetName);
+  if (custom) return custom.annual;
   const kind = PLANT_KINDS.find((k) => k.name === presetName);
   if (kind) return !!kind.annual;
   return !!presetName && !PERENNIALS.has(presetName);
@@ -188,7 +210,12 @@ const GROUPS: { words: string[]; plants: string[] }[] = [
   { words: ['coda di leone', 'lion’s tail', 'lions tail', 'wild dagga', 'dagga'], plants: ['Leonotis (klip dagga)'] },
 ];
 
-const normalize = (s: string) =>
+/** The whole catalog: built-in plants, then the ones added from a file. */
+export function catalog(): PlantPreset[] {
+  return [...PLANT_PRESETS, ...customEntries()];
+}
+
+export const normalize = (s: string) =>
   s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
 /**
@@ -204,10 +231,13 @@ export function searchPresets(query: string): PlantPreset[] {
   const fromGroups = new Set(
     GROUPS.filter((g) => g.words.some((w) => normalize(w).startsWith(stem))).flatMap((g) => g.plants),
   );
-  const byName = PLANT_PRESETS.filter((p) =>
-    [p.name, CATALOG_EN[p.name] ?? ''].some((n) => normalize(n).includes(stem)),
+  const all = catalog();
+  const byName = all.filter((p) =>
+    [p.name, CATALOG_EN[p.name] ?? customEnglish()[p.name] ?? '', ...(customFor(p.name)?.aliases ?? [])].some((n) =>
+      normalize(n).includes(stem),
+    ),
   );
-  return [...byName, ...PLANT_PRESETS.filter((p) => fromGroups.has(p.name) && !byName.includes(p))];
+  return [...byName, ...all.filter((p) => fromGroups.has(p.name) && !byName.includes(p))];
 }
 
 /**
@@ -218,5 +248,5 @@ export function searchPresets(query: string): PlantPreset[] {
 export function presetFor(plant: { preset: string | null; name: string }): PlantPreset | undefined {
   const key = (plant.preset ?? plant.name).toLowerCase();
   const match = (p: PlantPreset) => p.name.toLowerCase() === key || cat(p.name).toLowerCase() === key;
-  return PLANT_PRESETS.find(match) ?? (plant.preset ? PLANT_KINDS.find(match) : undefined);
+  return catalog().find(match) ?? (plant.preset ? PLANT_KINDS.find(match) : undefined);
 }

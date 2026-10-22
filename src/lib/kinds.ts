@@ -12,9 +12,6 @@ export interface PlantKind extends PlantPreset {
   annual?: boolean;
 }
 
-/** How big the plant is now. */
-export type Size = 'small' | 'medium' | 'large';
-
 // The name is the key saved as the plant's preset, as for catalog plants.
 // `waterEveryDays` is for a medium plant in open ground, in summer.
 export const PLANT_KINDS: PlantKind[] = [
@@ -32,17 +29,4 @@ export const PLANT_KINDS: PlantKind[] = [
 
 export function kindFor(preset: string | null | undefined): PlantKind | undefined {
   return PLANT_KINDS.find((k) => k.name === preset);
-}
-
-// Pots dry out faster than open ground; a young plant has few roots, a big
-// established one reaches water deep down.
-const WATER_FACTOR: Record<'ground' | 'pot', Record<Size, number>> = {
-  ground: { small: 0.5, medium: 1, large: 1.5 },
-  pot: { small: 0.35, medium: 0.5, large: 0.75 },
-};
-
-/** Summer watering interval for a plant of this kind, in a pot or not, of this size. */
-export function kindWatering(kind: PlantKind, potted: boolean, size: Size): number {
-  const days = Math.round(kind.waterEveryDays * WATER_FACTOR[potted ? 'pot' : 'ground'][size]);
-  return Math.min(Math.max(days, 1), 60);
 }

@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { insertFor, makeBackup, parseBackup } from './backup.ts';
 
-const empty = { zones: [], plants: [], tasks: [], task_log: [], settings: [] };
+const empty = { catalog: [], zones: [], plants: [], tasks: [], task_log: [], settings: [] };
 
 test('a backup survives a round trip through JSON', () => {
   const b = makeBackup(4, { ...empty, plants: [{ id: 1, name: 'Pomodoro' }] }, new Date('2026-10-20T08:00:00Z'));
@@ -18,10 +18,11 @@ test('parseBackup rejects files that are not ortDirector backups', () => {
   assert.throws(() => parseBackup(JSON.stringify(broken), 4), /tabella tasks/);
 });
 
-test('parseBackup accepts backups from before zones existed', () => {
-  const { zones: _zones, ...old } = empty;
+test('parseBackup accepts backups from before zones and the added catalog existed', () => {
+  const { zones: _zones, catalog: _catalog, ...old } = empty;
   const b = parseBackup(JSON.stringify({ app: 'ortdirector', version: 3, exportedAt: '', tables: old }), 4);
   assert.deepEqual(b.tables.zones, []);
+  assert.deepEqual(b.tables.catalog, []);
 });
 
 test('insertFor keeps only real columns', () => {
