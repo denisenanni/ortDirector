@@ -41,6 +41,7 @@ const EMPTY: PlantInput = {
   potted: false,
   size: 'medium',
   potSize: 'medium',
+  covered: false,
   sun: 'full',
   waterEveryDays: 3,
   waterColdDays: 9,
@@ -351,6 +352,22 @@ export default function EditPlantScreen() {
               <Chip icon="add" label={tr('Nuova zona', 'New zone')} onPress={() => router.push('/zone/edit')} />
             </ChipRow>
             {mismatch ? <Body style={{ marginTop: 8, color: t.warn }}>{mismatch}</Body> : null}
+            <View style={{ marginTop: 12 }}>
+              <ToggleRow
+                label={tr('Al coperto', 'Under cover')}
+                detail={
+                  zone?.covered
+                    ? tr('La zona è già al coperto.', 'The zone is under cover already.')
+                    : tr(
+                        'Sotto una tettoia, in casa, in serra: la pioggia non la bagna, quindi “Ha piovuto” non sposta la sua annaffiatura.',
+                        'Under a roof, indoors, in a greenhouse: rain doesn’t reach it, so “It rained” doesn’t move its watering.',
+                      )
+                }
+                on={form.covered || !!zone?.covered}
+                disabled={!!zone?.covered}
+                onPress={() => set('covered', !form.covered)}
+              />
+            </View>
           </Field>
           <Field label={tr('Sole che le serve', 'Sun it needs')}>
             <ChipRow>

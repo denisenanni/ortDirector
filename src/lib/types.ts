@@ -42,6 +42,8 @@ export interface Plant {
   size: Size | null;
   /** How big its pot is, for potted plants. */
   potSize: Size | null;
+  /** Under a roof or indoors wherever its zone is: rain doesn't reach it. */
+  covered: boolean;
   /** The sun the plant needs. */
   sun: Sun;
   /** Watering interval in the warm months (May to September). */
