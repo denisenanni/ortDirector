@@ -18,7 +18,7 @@ Any text can be plain Italian, or `{ "it": "…", "en": "…" }` to give the Eng
 |---|---|---|
 | `name` | text, required | Catalog name, the key saved with the plant. |
 | `sun` | required | `"full"`, `"partial"` or `"shade"`. |
-| `waterEveryDays` | 1-60, required | Summer interval in open ground (pots dry out faster: adjust in the form). |
+| `waterEveryDays` | 1-60, required | Summer interval for a medium plant in open ground; the form scales it by plant size and, in a pot, by pot size (src/lib/watering.ts). |
 | `waterColdDays` | 1-90 | Rest of the year; default a third as often, at most every 21 days. |
 | `tip` | text | Shown in the form when the plant is picked. |
 | `annual` | true/false | Lives one season; default false. |

@@ -2,7 +2,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PLANS, expandPlan, regularWateringFrom, seasonalTasks, transplantReminder } from './plans.ts';
-import { PLANT_KINDS, kindWatering } from './kinds.ts';
+import { PLANT_KINDS } from './kinds.ts';
+import { scaledWatering } from './watering.ts';
 import { PLANT_PRESETS, isAnnual, presetFor } from './presets.ts';
 
 test('every catalog plant has a plan, and every plan a catalog plant', () => {
@@ -130,12 +131,16 @@ test('frost protection falls in November', () => {
   assert.equal(t?.yearly, true);
 });
 
-test('watering follows pot and size', () => {
-  const tree = PLANT_KINDS.find((k) => k.name === 'Albero da frutto')!;
-  assert.equal(kindWatering(tree, false, 'medium'), 7);
-  assert.equal(kindWatering(tree, false, 'large'), 11);
-  assert.equal(kindWatering(tree, true, 'small'), 2);
-  assert.ok(kindWatering(PLANT_KINDS[0], true, 'small') >= 1);
+test('watering follows the plant against its pot', () => {
+  assert.equal(scaledWatering(7, false, 'medium', null), 7);
+  assert.equal(scaledWatering(7, false, 'large', null), 11);
+  assert.equal(scaledWatering(7, false, null, null), 7);
+  // A big plant in a small pot dries out first, a seedling in a big pot last.
+  assert.equal(scaledWatering(7, true, 'large', 'small'), 2);
+  assert.equal(scaledWatering(7, true, 'medium', 'medium'), 4);
+  assert.equal(scaledWatering(7, true, 'small', 'large'), 6);
+  assert.equal(scaledWatering(1, true, 'large', 'small'), 1);
+  assert.equal(scaledWatering(60, false, 'large', null), 60);
 });
 
 test('kinds are perennial unless annual, and found only as a preset', () => {

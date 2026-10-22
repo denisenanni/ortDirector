@@ -13,6 +13,9 @@ export type TaskType =
 /** Where a plant is: still in the seedbed or a nursery pot, or in its final spot. */
 export type Stage = 'seedbed' | 'ground';
 
+/** How big a plant, or its pot, is: picks how often it needs water. */
+export type Size = 'small' | 'medium' | 'large';
+
 /** Calendar day in local time, formatted YYYY-MM-DD. */
 export type DayString = string;
 
@@ -35,6 +38,10 @@ export interface Plant {
   zoneId: number | null;
   /** Lives in a pot for good. */
   potted: boolean;
+  /** How big the plant is; null for plants from before sizes, and seedlings. */
+  size: Size | null;
+  /** How big its pot is, for potted plants. */
+  potSize: Size | null;
   /** The sun the plant needs. */
   sun: Sun;
   /** Watering interval in the warm months (May to September). */

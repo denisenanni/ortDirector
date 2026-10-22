@@ -2,7 +2,7 @@ import { cat, days, language, tr } from './i18n.ts';
 import { CATALOG_EN } from './catalog-en.ts';
 import { customEnglish, customEntries, customFor } from './custom.ts';
 import { PLANT_KINDS } from './kinds.ts';
-import type { Sun, TaskType } from './types';
+import type { Size, Sun, TaskType } from './types';
 
 export interface PlantPreset {
   name: string;
@@ -64,6 +64,25 @@ export const SUN_LABEL: Record<Sun, string> = {
   get full() { return tr('Pieno sole', 'Full sun'); },
   get partial() { return tr('Mezz’ombra', 'Part shade'); },
   get shade() { return tr('Ombra', 'Shade'); },
+};
+
+export const PLANT_SIZE_LABEL: Record<Size, string> = {
+  get small() { return tr('Piccola o giovane', 'Small or young'); },
+  get medium() { return tr('Media', 'Medium'); },
+  get large() { return tr('Grande, adulta', 'Large, mature'); },
+};
+
+export const POT_SIZE_LABEL: Record<Size, string> = {
+  get small() { return tr('Piccolo, fino a 20 cm', 'Small, up to 20 cm'); },
+  get medium() { return tr('Medio, 20-40 cm', 'Medium, 20-40 cm'); },
+  get large() { return tr('Grande, oltre 40 cm', 'Large, over 40 cm'); },
+};
+
+/** "Vaso piccolo", for the plant's page. */
+export const POT_LABEL: Record<Size, string> = {
+  get small() { return tr('Vaso piccolo', 'Small pot'); },
+  get medium() { return tr('Vaso medio', 'Medium pot'); },
+  get large() { return tr('Vaso grande', 'Large pot'); },
 };
 
 export const SUN_ICON: Record<Sun, string> = {
