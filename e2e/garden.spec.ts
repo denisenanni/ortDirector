@@ -90,10 +90,13 @@ test('a sown tomato waits for its transplant, then gets the plan', async ({ page
 });
 
 test('a zone in the shade warns about a plant that wants full sun', async ({ page }) => {
-  await page.goto('/zone/edit');
+  await page.goto('/plants');
+  await page.getByRole('button', { name: /Nuova zona$/ }).click();
   await page.getByPlaceholder('Es. Aiuola nord').fill('Sottoscala');
   await page.getByRole('button', { name: /Ombra$/ }).click();
   await page.getByRole('button', { name: 'Salva' }).click();
+  // Saved once Piante shows it; leaving earlier could cut the write short.
+  await expect(page.getByText('Sottoscala')).toBeVisible();
   await addPlant(page, 'Pomodoro', { zone: 'Sottoscala' });
 
   await page.goto('/plants');
