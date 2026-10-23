@@ -10,11 +10,20 @@ name: Semino un pomodoro e segno il trapianto
 - tapOn: ".*Piante.*"
 # The whole row is one button, read with all its texts (icon first), so match the name anywhere.
 - tapOn: ".*Pomodoro.*"
-- assertVisible: ".*Pronta da trapiantare.*"
+# Its tasks are below the fold: scroll to the reminder, then back up.
+- scrollUntilVisible:
+    element: ".*Pronta da trapiantare.*"
+- scrollUntilVisible:
+    element: ".*Segna il trapianto.*"
+    direction: UP
 - tapOn: ".*Segna il trapianto.*"
+- assertVisible: "Trapianto"
+# The transplant form saves with the same label, at its bottom.
 - scrollUntilVisible:
     element: ".*Segna il trapianto.*"
 - tapOn: ".*Segna il trapianto.*"
-- assertVisible: ".*Mettere il tutore.*"
-- assertVisible: ".*Annaffiare \\(attecchimento\\).*"
+- scrollUntilVisible:
+    element: ".*Mettere il tutore.*"
+- scrollUntilVisible:
+    element: ".*Annaffiare \\(attecchimento\\).*"
 - assertNotVisible: ".*Pronta da trapiantare.*"
