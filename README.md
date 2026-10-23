@@ -83,14 +83,14 @@ L'app installata e Expo Go hanno dati separati: per portare le piante esporta il
 
 ```sh
 yarn typecheck         # tsc
-yarn test              # test della logica di date, promemoria e piani (node --test)
+yarn test              # test della logica e del database su SQLite in memoria (node --test)
 yarn web               # anteprima nel browser
 ```
 
 Struttura:
 
 - `src/app/` schermate (Expo Router). `(tabs)/` sono Oggi, Piante, Impostazioni.
-- `src/lib/db.ts` schema SQLite, migrazioni (`PRAGMA user_version`) e query.
+- `src/lib/db.ts` schema SQLite, migrazioni (`PRAGMA user_version`) e query, testati in `db.test.ts` e `migrations.test.ts` con `memoryDb.ts` (SQLite di Node al posto di expo-sqlite). Ogni nuova versione del database aggiunge il suo schema in `migrations.test.ts`.
 - `src/lib/schedule.ts` logica pura di date e promemoria, testata in `schedule.test.ts`.
 - `src/lib/notifications.ts` permessi e sincronizzazione delle notifiche.
 - `src/lib/presets.ts` piante comuni ed etichette.
