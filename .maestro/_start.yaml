@@ -7,6 +7,16 @@ tags:
     clearState: true
     permissions:
       notifications: ${NOTIFICATIONS || 'allow'}
-- tapOn: ".*(Impostazioni|Settings).*"
+# A fresh install sets up its database first: wait for Oggi before tapping.
+- extendedWaitUntil:
+    visible: "(Oggi|Today)"
+    timeout: 20000
+- waitForAnimationToEnd
+# A tap that lands while the app is still starting is lost, so try again.
+- retry:
+    maxRetries: 3
+    commands:
+      - tapOn: "(Impostazioni|Settings), tab.*"
+      - assertVisible: "Italiano"
 - tapOn: "Italiano"
-- tapOn: ".*Piante.*"
+- tapOn: "Piante, tab.*"

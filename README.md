@@ -99,6 +99,8 @@ yarn simulator         # una volta, e dopo ogni modifica: compila l'app e la ins
 yarn maestro           # tutti i percorsi; uno solo: maestro test .maestro/pioggia.yaml
 ```
 
+Se `yarn maestro` resta fermo senza scrivere niente dopo l'elenco dei percorsi, Maestro è bloccato a cercare emulatori Android: interroga le porte 5555-5585 e aspetta all'infinito se un altro programma ne usa una senza rispondere (sul Mac di denise, NTKDaemon di Native Instruments sulla 5563). `lsof -nP -iTCP -sTCP:LISTEN | grep -E ':55[5-8][0-9]'` mostra chi è; chiudilo (`kill <PID>`) e riprova.
+
 Ogni percorso parte da un'app vuota e la mette in italiano, qualunque sia la lingua del simulatore. `maestro studio` apre il simulatore nel browser e mostra il nome di ogni elemento, utile per scrivere un percorso nuovo.
 
 Struttura:

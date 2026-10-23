@@ -6,9 +6,12 @@ tags:
 ---
 - tapOn: "Aggiungi pianta"
 - tapOn: "Cerca: pomodoro.*"
-- inputText: ${PLANT.toLowerCase()}
+# Only the start of the name: Maestro matches text ignoring case, so the full
+# name in the search box would match too, and the tap would miss the chip.
+- inputText: ${PLANT.slice(0, 4).toLowerCase()}
 - tapOn: ${PLANT}
-- hideKeyboard
+# hideKeyboard can't close it on iOS; Enter submits the search field, which closes it.
+- pressKey: Enter
 - tapOn: ${STAGE || 'A dimora in terra'}
 - tapOn: "30 giorni fa"
 - runFlow:
@@ -21,5 +24,7 @@ tags:
 - scrollUntilVisible:
     element: "Salva"
 - tapOn: "Salva"
+# Saved: the new plant's page replaces the form.
+- assertNotVisible: "Cerca nel catalogo"
 # Back to Oggi, as when you open the app.
 - launchApp
