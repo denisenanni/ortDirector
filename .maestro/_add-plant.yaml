@@ -1,0 +1,25 @@
+# Adds a catalog plant from Piante. env: PLANT (as in the catalog), STAGE
+# (Seminata, A dimora in terra…), COVERED (true to tick "Al coperto").
+appId: com.devdenise.ortdirector
+tags:
+  - subflow
+---
+- tapOn: "Aggiungi pianta"
+- tapOn: "Cerca: pomodoro.*"
+- inputText: ${PLANT.toLowerCase()}
+- tapOn: ${PLANT}
+- hideKeyboard
+- tapOn: ${STAGE || 'A dimora in terra'}
+- tapOn: "30 giorni fa"
+- runFlow:
+    when:
+      true: ${COVERED == 'true'}
+    commands:
+      - scrollUntilVisible:
+          element: "Al coperto.*"
+      - tapOn: "Al coperto.*"
+- scrollUntilVisible:
+    element: "Salva"
+- tapOn: "Salva"
+# Back to Oggi, as when you open the app.
+- launchApp

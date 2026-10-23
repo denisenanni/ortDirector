@@ -155,4 +155,4 @@ Una notifica al giorno, all'ora scelta in Impostazioni (8 di default), per i pro
 
 `yarn e2e` prova l'app intera nel browser (Playwright su Chromium, a misura di iPhone): costruisce la versione web, la apre e usa le schermate vere come faresti sul telefono. I percorsi sono in `e2e/garden.spec.ts`: aggiungere una pianta e spuntarla, la pioggia con le piante al coperto, semina e trapianto, l'avviso sole della zona, un'attività rimandata, il backup portato su un altro "telefono". Ogni test parte da un orto vuoto il 15 giugno 2026, così le date non dipendono da quando gira. Su GitHub gira a ogni pull request, accanto a `yarn test`.
 
-Quello che il browser non vede resta senza test automatici: notifiche, fotocamera, foglio di condivisione e date picker di iOS.
+Per l'app iOS vera ci sono i percorsi Maestro in `.maestro/` (`yarn maestro`, solo sul Mac con il simulatore): gli stessi giri principali più le notifiche negate. Non girano su GitHub. Restano senza test automatici fotocamera, foglio di condivisione e date picker di iOS.

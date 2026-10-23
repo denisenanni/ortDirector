@@ -1,0 +1,7 @@
+# Maestro flows for the iOS app: `yarn maestro` runs every flow in this
+# folder on the booted simulator. Files starting with _ are pieces the flows
+# reuse, not flows of their own.
+flows:
+  - "*.yaml"
+excludeTags:
+  - subflow

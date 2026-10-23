@@ -90,6 +90,17 @@ yarn e2e               # percorsi completi nell'app web, con Playwright
 yarn web               # anteprima nel browser
 ```
 
+### Test sul simulatore iPhone (Maestro)
+
+I percorsi in `.maestro/` girano sull'app iOS vera, nel simulatore: vedono anche quello che il browser non vede (notifiche e permessi). Serve il Mac con Xcode e [Maestro](https://maestro.dev) installato.
+
+```sh
+yarn simulator         # una volta, e dopo ogni modifica: compila l'app e la installa nel simulatore
+yarn maestro           # tutti i percorsi; uno solo: maestro test .maestro/pioggia.yaml
+```
+
+Ogni percorso parte da un'app vuota e la mette in italiano, qualunque sia la lingua del simulatore. `maestro studio` apre il simulatore nel browser e mostra il nome di ogni elemento, utile per scrivere un percorso nuovo.
+
 Struttura:
 
 - `src/app/` schermate (Expo Router). `(tabs)/` sono Oggi, Piante, Impostazioni.

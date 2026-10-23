@@ -1,0 +1,19 @@
+appId: com.devdenise.ortdirector
+name: Ha piovuto bagna le piante all'aperto, non quelle al coperto
+---
+- runFlow: _start.yaml
+- runFlow:
+    file: _add-plant.yaml
+    env:
+      PLANT: Basilico
+- tapOn: ".*Piante.*"
+- runFlow:
+    file: _add-plant.yaml
+    env:
+      PLANT: Prezzemolo
+      COVERED: "true"
+- tapOn: ".*Ha piovuto.*"
+- assertVisible: "Pioggia segnata oggi"
+- assertVisible: "1 annaffiatura spostata.*"
+- tapOn: "Annulla"
+- assertVisible: ".*Ha piovuto.*"
