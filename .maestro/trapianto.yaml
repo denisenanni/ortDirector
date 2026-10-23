@@ -8,7 +8,8 @@ name: Semino un pomodoro e segno il trapianto
       PLANT: Pomodoro
       STAGE: Seminata
 - tapOn: ".*Piante.*"
-- tapOn: "Pomodoro"
+# The whole row is one button, read with all its texts after the name.
+- tapOn: "Pomodoro.*"
 - assertVisible: ".*Pronta da trapiantare.*"
 - tapOn: ".*Segna il trapianto.*"
 - scrollUntilVisible:
