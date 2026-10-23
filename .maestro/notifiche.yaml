@@ -1,0 +1,10 @@
+appId: com.devdenise.ortdirector
+name: Con le notifiche negate, Impostazioni lo dice e offre di attivarle
+---
+- runFlow:
+    file: _start.yaml
+    env:
+      NOTIFICATIONS: deny
+- tapOn: ".*Impostazioni.*"
+- assertVisible: "Le notifiche sono disattivate."
+- assertVisible: "Attiva notifiche"

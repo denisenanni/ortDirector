@@ -1,0 +1,12 @@
+# Empty app, in Italian whatever the simulator's language, on Piante.
+appId: com.devdenise.ortdirector
+tags:
+  - subflow
+---
+- launchApp:
+    clearState: true
+    permissions:
+      notifications: ${NOTIFICATIONS || 'allow'}
+- tapOn: ".*(Impostazioni|Settings).*"
+- tapOn: "Italiano"
+- tapOn: ".*Piante.*"

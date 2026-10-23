@@ -37,10 +37,12 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "iphone": "expo run:ios --device --configuration Release",
+    "simulator": "expo run:ios --configuration Release",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --experimental-sqlite --no-warnings --test \"src/**/*.test.ts\"",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "maestro": "maestro test .maestro"
   },
   "private": true,
   "packageManager": "yarn@4.18.1+sha512.b2e1e7524f654f2749d32b4ebcb4622473cb5bcbc485df2007e12a154e50162a4d795526768bc5f5b8f81717bfd79deb2472813d86fb5ae2eb551fa9c872b08f"

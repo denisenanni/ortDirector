@@ -1,0 +1,19 @@
+appId: com.devdenise.ortdirector
+name: Semino un pomodoro e segno il trapianto
+---
+- runFlow: _start.yaml
+- runFlow:
+    file: _add-plant.yaml
+    env:
+      PLANT: Pomodoro
+      STAGE: Seminata
+- tapOn: ".*Piante.*"
+- tapOn: "Pomodoro"
+- assertVisible: ".*Pronta da trapiantare.*"
+- tapOn: ".*Segna il trapianto.*"
+- scrollUntilVisible:
+    element: ".*Segna il trapianto.*"
+- tapOn: ".*Segna il trapianto.*"
+- assertVisible: ".*Mettere il tutore.*"
+- assertVisible: ".*Annaffiare \\(attecchimento\\).*"
+- assertNotVisible: ".*Pronta da trapiantare.*"

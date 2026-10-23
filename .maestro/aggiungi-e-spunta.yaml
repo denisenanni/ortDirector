@@ -1,0 +1,18 @@
+appId: com.devdenise.ortdirector
+name: Aggiungo una pianta, la spunto e tolgo la spunta
+---
+- runFlow: _start.yaml
+- runFlow:
+    file: _add-plant.yaml
+    env:
+      PLANT: Basilico
+- assertVisible: "Segna come fatto: Annaffiare"
+- tapOn: "Segna come fatto: Annaffiare"
+- assertVisible: "Fatto: Annaffiare.*"
+- assertVisible: "Fatto oggi"
+# Closing and opening the app keeps it.
+- stopApp
+- launchApp
+- assertVisible: "Fatto: Annaffiare.*"
+- tapOn: "Fatto: Annaffiare.*"
+- assertNotVisible: "Fatto: Annaffiare.*"
