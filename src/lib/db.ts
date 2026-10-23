@@ -1,13 +1,13 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { BACKUP_TABLES, insertFor, makeBackup, type Backup, type Row } from './backup';
-import { parseCatalogEntry } from './catalogFile';
-import { customEntries, customFor, setCustomCatalog, type CustomEntry } from './custom';
-import { kindFor } from './kinds';
-import { planFor, regularWateringFrom, seasonalTasks, transplantReminder, type CareContext, type PlannedTask } from './plans';
-import { local, tr } from './i18n';
-import { isAnnual, presetFor } from './presets';
-import { afterRain, completeTask, today } from './schedule';
-import { coldWateringDefault } from './watering';
+import { BACKUP_TABLES, insertFor, makeBackup, type Backup, type Row } from './backup.ts';
+import { parseCatalogEntry } from './catalogFile.ts';
+import { customEntries, customFor, setCustomCatalog, type CustomEntry } from './custom.ts';
+import { kindFor } from './kinds.ts';
+import { planFor, regularWateringFrom, seasonalTasks, transplantReminder, type CareContext, type PlannedTask } from './plans.ts';
+import { local, tr } from './i18n.ts';
+import { isAnnual, presetFor } from './presets.ts';
+import { afterRain, completeTask, today } from './schedule.ts';
+import { coldWateringDefault } from './watering.ts';
 import type { DayString, DoneEntry, LogEntry, Plant, Size, Stage, Sun, Task, TaskType, TaskWithPlant, Zone } from './types';
 
 export const DATABASE_NAME = 'ortdirector.db';
@@ -71,10 +71,17 @@ export async function migrate(db: SQLiteDatabase) {
       ALTER TABLE tasks ADD COLUMN yearly INTEGER NOT NULL DEFAULT 0;
       ALTER TABLE tasks ADD COLUMN months TEXT;
     `);
-    // Plants added before seasonal care existed get theirs now.
+    // Plants added before seasonal care existed get theirs now. Not through
+    // insertTask: it writes columns that only come with later versions.
     const plants = await db.getAllAsync<PlantRow>('SELECT * FROM plants');
     for (const p of plants) {
-      for (const t of seasonalTasks(planFor(presetFor(p)?.name), today())) await insertTask(db, p.id, t);
+      for (const t of seasonalTasks(planFor(presetFor(p)?.name), today())) {
+        await db.runAsync(
+          `INSERT INTO tasks (plant_id, type, title, due_on, repeat_days, ends_on, yearly, months)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          p.id, t.type, t.title, t.dueOn, t.repeatDays, t.endsOn, t.yearly ? 1 : 0, monthsText(t.months),
+        );
+      }
     }
     version = 3;
   }
@@ -659,7 +666,6 @@ export async function saveZone(db: SQLiteDatabase, z: Omit<Zone, 'id'> & { id?: 
   return res.lastInsertRowId;
 }
 
-/** Deletes the zone; its plants stay, without a zone. */
 /** How many plants are in the zone, archived ones included. */
 export async function countZonePlants(db: SQLiteDatabase, id: number): Promise<{ total: number; archived: number }> {
   const r = await db.getFirstAsync<{ total: number; archived: number | null }>(
