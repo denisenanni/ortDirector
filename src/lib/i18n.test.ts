@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { afterEach, test } from 'node:test';
 import { CATALOG_EN } from './catalog-en.ts';
-import { cat, local, setLanguage, tr } from './i18n.ts';
+import { cat, local, locale, setLanguage, tr } from './i18n.ts';
 import { PLANT_KINDS } from './kinds.ts';
 import { planFor } from './plans.ts';
 import { PLANT_PRESETS, SUN_LABEL, TASK_LABEL, monthsLabel, presetFor, repeatLabel, searchPresets } from './presets.ts';
@@ -35,6 +35,14 @@ test('English switches labels, catalog and dates', () => {
   assert.equal(relativeLabel('2026-10-18', '2026-10-20'), '2 days late');
   assert.equal(repeatLabel({ repeatDays: 2, yearly: false, months: null, coldRepeatDays: 6 }), 'every 2 days (Oct–Apr every 6 days)');
   assert.equal(monthsLabel([4, 5, 6, 7, 8, 9]), 'Apr–Sep');
+});
+
+test('a malformed phone locale falls back instead of breaking every date', () => {
+  setLanguage('en', 'en-US@posix');
+  assert.equal(locale(), 'en-GB');
+  assert.equal(relativeLabel('2026-12-25', '2026-10-20'), '25 Dec');
+  setLanguage('en', 'en-US');
+  assert.equal(locale(), 'en-US');
 });
 
 test('a plant named in English still finds its catalog entry', () => {

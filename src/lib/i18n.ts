@@ -15,9 +15,18 @@ let dateLocale = 'it-IT';
 
 const listeners = new Set<(lang: Lang) => void>();
 
+/** The tag when dates can be formatted with it; a malformed one (en-US@posix) would throw on every date. */
+function validTag(tag: string | undefined): string | undefined {
+  try {
+    return tag && Intl.DateTimeFormat.supportedLocalesOf([tag]).length ? tag : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function setLanguage(lang: Lang, locale?: string) {
   current = lang;
-  dateLocale = locale ?? (lang === 'it' ? 'it-IT' : 'en-GB');
+  dateLocale = validTag(locale) ?? (lang === 'it' ? 'it-IT' : 'en-GB');
   listeners.forEach((l) => l(lang));
 }
 

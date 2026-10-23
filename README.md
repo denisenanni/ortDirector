@@ -35,6 +35,8 @@ React Native + Expo (SDK 57), TypeScript, dati solo sul telefono (SQLite), prome
 - **Promemoria**: una sola notifica al giorno (ora configurabile, default 8:00) con l'elenco delle attività.
 - **Storico** per pianta.
 
+Come funziona dentro (dati, attività, acqua, pioggia, stagioni, trapianto, backup, test): [docs/come-funziona.md](docs/come-funziona.md).
+
 ## Provarla sull'iPhone
 
 Serve un computer (Mac, Windows o Linux) con **Node 24 LTS** (c’è `.nvmrc`; Expo non supporta le versioni dispari di Node) e corepack attivo (`corepack enable`) sulla stessa Wi-Fi dell’iPhone.
@@ -84,6 +86,7 @@ L'app installata e Expo Go hanno dati separati: per portare le piante esporta il
 ```sh
 yarn typecheck         # tsc
 yarn test              # test della logica e del database su SQLite in memoria (node --test)
+yarn e2e               # percorsi completi nell'app web, con Playwright
 yarn web               # anteprima nel browser
 ```
 
