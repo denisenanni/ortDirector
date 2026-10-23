@@ -86,6 +86,7 @@ L'app installata e Expo Go hanno dati separati: per portare le piante esporta il
 ```sh
 yarn typecheck         # tsc
 yarn test              # test della logica e del database su SQLite in memoria (node --test)
+yarn e2e               # percorsi completi nell'app web, con Playwright
 yarn web               # anteprima nel browser
 ```
 

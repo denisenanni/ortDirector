@@ -27,6 +27,7 @@
     "react-native-web": "~0.21.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.56.1",
     "@types/node": "^22.20.5",
     "@types/react": "~19.2.2",
     "typescript": "~6.0.3"
@@ -38,7 +39,8 @@
     "iphone": "expo run:ios --device --configuration Release",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --experimental-sqlite --no-warnings --test \"src/**/*.test.ts\""
+    "test": "node --experimental-strip-types --experimental-sqlite --no-warnings --test \"src/**/*.test.ts\"",
+    "e2e": "playwright test"
   },
   "private": true,
   "packageManager": "yarn@4.18.1+sha512.b2e1e7524f654f2749d32b4ebcb4622473cb5bcbc485df2007e12a154e50162a4d795526768bc5f5b8f81717bfd79deb2472813d86fb5ae2eb551fa9c872b08f"

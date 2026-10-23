@@ -151,4 +151,8 @@ Una notifica al giorno, all'ora scelta in Impostazioni (8 di default), per i pro
 | `db.test.ts` | Cosa scrive ogni azione su un SQLite vero in memoria: spunta, pioggia, trapianto, archivio, zone, catalogo, backup |
 | `migrations.test.ts` | Un giardino a ogni versione vecchia del database, aggiornato all'ultima |
 
-`db.test.ts` e `migrations.test.ts` usano `memoryDb.ts`: il SQLite di Node dietro i pochi metodi di expo-sqlite che `db.ts` usa. Le schermate e il codice che parla con iOS (notifiche, foto, file) non hanno test automatici.
+`db.test.ts` e `migrations.test.ts` usano `memoryDb.ts`: il SQLite di Node dietro i pochi metodi di expo-sqlite che `db.ts` usa.
+
+`yarn e2e` prova l'app intera nel browser (Playwright su Chromium, a misura di iPhone): costruisce la versione web, la apre e usa le schermate vere come faresti sul telefono. I percorsi sono in `e2e/garden.spec.ts`: aggiungere una pianta e spuntarla, la pioggia con le piante al coperto, semina e trapianto, l'avviso sole della zona, un'attività rimandata, il backup portato su un altro "telefono". Ogni test parte da un orto vuoto il 15 giugno 2026, così le date non dipendono da quando gira. Su GitHub gira a ogni pull request, accanto a `yarn test`.
+
+Quello che il browser non vede resta senza test automatici: notifiche, fotocamera, foglio di condivisione e date picker di iOS.
