@@ -8,7 +8,8 @@ tags:
 - tapOn: "Cerca: pomodoro.*"
 - inputText: ${PLANT.toLowerCase()}
 - tapOn: ${PLANT}
-- hideKeyboard
+# hideKeyboard can't close it on iOS; Enter submits the search field, which closes it.
+- pressKey: Enter
 - tapOn: ${STAGE || 'A dimora in terra'}
 - tapOn: "30 giorni fa"
 - runFlow:
