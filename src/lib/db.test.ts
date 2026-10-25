@@ -9,7 +9,7 @@ import { parseCatalogFile } from './catalogFile.ts';
 import { customFor, setCustomCatalog } from './custom.ts';
 import * as db from './db.ts';
 import { openMemoryDb } from './memoryDb.ts';
-import { expandPlan, planFor } from './plans.ts';
+import { REPOT_NO_FEED_DAYS, REPOT_STEPS, expandPlan, planFor } from './plans.ts';
 import { addDays, today } from './schedule.ts';
 import type { Plant } from './types';
 import { plantWatering } from './watering.ts';
@@ -313,4 +313,46 @@ test('the reminder hour falls back to 8 when unset or broken', async () => {
   assert.equal(await db.getReminderHour(d), db.DEFAULT_REMINDER_HOUR);
   await d.runAsync(`INSERT INTO settings (key, value) VALUES ('reminder_hour', 'x')`);
   assert.equal(await db.getReminderHour(d), db.DEFAULT_REMINDER_HOUR);
+});
+
+test('moving a plant from the ground into a pot saves the place, logs it, adds after-care and swaps frost care', async () => {
+  const d = await fresh();
+  const p = plant({ name: 'Avocado', preset: 'Avocado', size: 'medium', waterEveryDays: 7 });
+  const id = await db.createPlant(d, p);
+  const titles = async () => (await tasksOf(d, id)).map((t) => t.title);
+  assert.ok((await titles()).includes('Pacciamare e coprire con tessuto non tessuto'));
+  const feed = { plantId: id, type: 'fertilize' as const, title: 'Concime liquido', dueOn: addDays(T, 5), repeatDays: null, endsOn: null, yearly: false, months: null, coldRepeatDays: null, notes: null };
+  await db.createTask(d, feed);
+  await db.createTask(d, { ...feed, dueOn: addDays(T, 40) });
+
+  const place = { potted: true, size: 'medium' as const, potSize: 'small' as const };
+  const watering = plantWatering({ ...p, ...place });
+  const care = expandPlan(REPOT_STEPS, T, T);
+  await db.movePlant(d, id, T, care, { ...place, watering, zoneId: null, covered: true, holdFeeding: true });
+
+  const after = (await db.getPlant(d, id)) as Plant;
+  assert.deepEqual([after.potted, after.potSize, after.covered, after.plantedOn], [true, 'small', true, T]);
+  assert.equal(after.waterEveryDays, watering!.waterEveryDays);
+  assert.equal((await waterOf(d, id)).find((t) => !t.endsOn && t.repeatDays)!.repeatDays, watering!.waterEveryDays);
+  const now = await titles();
+  assert.ok(!now.includes('Pacciamare e coprire con tessuto non tessuto'));
+  assert.ok(!now.includes('Togliere la protezione invernale'));
+  assert.ok(now.includes('Controllare se serve un vaso più grande'));
+  assert.ok(now.includes('Mettere al riparo dal gelo'));
+  assert.ok(now.includes('Riportare fuori'));
+  for (const s of REPOT_STEPS) assert.ok(now.includes(s.title), s.title);
+  const feeds = (await tasksOf(d, id)).filter((t) => t.type === 'fertilize' && t.title === 'Concime liquido').map((t) => t.dueOn).sort();
+  assert.deepEqual(feeds, [addDays(T, REPOT_NO_FEED_DAYS), addDays(T, 40)]);
+  const log = await db.listPlantLog(d, id);
+  assert.deepEqual(log.map((e) => [e.title, e.doneOn]), [['Messa in vaso', T]]);
+});
+
+test('moving a potted plant into a bigger pot keeps its seasonal care and can leave feeding alone', async () => {
+  const d = await fresh();
+  const id = await db.createPlant(d, plant({ name: 'Avocado', preset: 'Avocado', potted: true, potSize: 'small' }));
+  const before = (await tasksOf(d, id)).map((t) => t.title).sort();
+  await db.movePlant(d, id, T, [], { potted: true, size: 'medium', potSize: 'large', watering: null, zoneId: null, covered: false, holdFeeding: false });
+  assert.deepEqual((await tasksOf(d, id)).map((t) => t.title).sort(), before);
+  assert.equal((await db.getPlant(d, id))!.potSize, 'large');
+  assert.deepEqual((await db.listPlantLog(d, id)).map((e) => e.title), ['Rinvaso']);
 });

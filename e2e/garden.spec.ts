@@ -89,6 +89,22 @@ test('a sown tomato waits for its transplant, then gets the plan', async ({ page
   await expect(page.getByText('Messa a dimora')).toBeVisible();
 });
 
+test('basil in the ground goes into a pot indoors and gets the care after the move', async ({ page }) => {
+  const id = await addPlant(page, 'Basilico', { since: '30 giorni fa' });
+  await page.getByRole('button', { name: /Rinvasa o sposta/ }).click();
+  await page.getByText('Dove va', { exact: true }).waitFor();
+  await page.getByRole('checkbox', { name: /^Al coperto/ }).click();
+  await page.getByRole('checkbox', { name: /Controllare che non soffra/ }).click(); // left out
+  await page.getByRole('button', { name: /Segna lo spostamento/ }).click();
+  await page.waitForURL(new RegExp(`/plant/${id}$`));
+
+  await expect(page.getByText('Annaffiare bene dopo il rinvaso')).toBeVisible();
+  await expect(page.getByText('Controllare il terriccio (annaffiare solo se asciutto)')).toBeVisible();
+  await expect(page.getByText(/Controllare che non soffra/)).toHaveCount(0);
+  await expect(page.getByText('Messa in vaso')).toBeVisible();
+  await expect(page.getByText(/Nel vaso dal/)).toBeVisible();
+});
+
 test('a zone in the shade warns about a plant that wants full sun', async ({ page }) => {
   await page.goto('/plants');
   await page.getByRole('button', { name: /Nuova zona$/ }).click();

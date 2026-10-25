@@ -3,10 +3,10 @@ import { BACKUP_TABLES, insertFor, makeBackup, type Backup, type Row } from './b
 import { parseCatalogEntry } from './catalogFile.ts';
 import { customEntries, customFor, setCustomCatalog, type CustomEntry } from './custom.ts';
 import { kindFor } from './kinds.ts';
-import { planFor, regularWateringFrom, seasonalTasks, transplantReminder, type CareContext, type PlannedTask } from './plans.ts';
+import { REPOT_NO_FEED_DAYS, placementCare, planFor, regularWateringFrom, seasonalTasks, transplantReminder, type CareContext, type PlannedTask } from './plans.ts';
 import { local, tr } from './i18n.ts';
 import { isAnnual, presetFor } from './presets.ts';
-import { afterRain, completeTask, today } from './schedule.ts';
+import { addDays, afterRain, completeTask, today } from './schedule.ts';
 import { coldWateringDefault } from './watering.ts';
 import type { DayString, DoneEntry, LogEntry, Plant, Size, Stage, Sun, Task, TaskType, TaskWithPlant, Zone } from './types';
 
@@ -408,6 +408,63 @@ export async function transplant(
         `UPDATE tasks SET due_on = MAX(due_on, ?) WHERE plant_id = ? AND type = 'water'
          AND repeat_days IS NOT NULL AND ends_on IS NULL AND done_on IS NULL`,
         waterFrom, plantId,
+      );
+    }
+    for (const t of tasks) await insertTask(db, plantId, t);
+  });
+}
+
+/** Where a plant already in place goes when it's moved: a pot, the ground, another zone, indoors. */
+export interface Move extends Placement {
+  zoneId: number | null;
+  covered: boolean;
+  /** Push feeding due in the next weeks past them, for the roots to heal. */
+  holdFeeding: boolean;
+}
+
+/**
+ * Moves a plant already in its spot on `day`: into a pot, back in the
+ * ground, into a bigger pot or another zone. Saves the new place and
+ * watering, logs the move, adds the chosen after-care and swaps the
+ * seasonal care that depends on being in a pot (frost cover vs bringing it in).
+ */
+export async function movePlant(db: SQLiteDatabase, plantId: number, day: DayString, tasks: PlannedTask[], move: Move) {
+  const plant = await getPlant(db, plantId);
+  if (!plant) return;
+  const { potted } = move;
+  const title =
+    potted && !plant.potted ? tr('Messa in vaso', 'Moved into a pot')
+    : !potted && plant.potted ? tr('Messa in terra', 'Moved into the ground')
+    : potted ? tr('Rinvaso', 'Repotted')
+    : tr('Spostata', 'Moved');
+  const plan = planFor(presetFor(plant)?.name);
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      `UPDATE plants SET planted_on = ?, potted = ?, size = ?, pot_size = ?, zone_id = ?, covered = ? WHERE id = ?`,
+      day, potted ? 1 : 0, move.size, potted ? move.potSize : null, move.zoneId, move.covered ? 1 : 0, plantId,
+    );
+    if (move.watering && plant.waterEveryDays) {
+      const { waterEveryDays, waterColdDays } = move.watering;
+      await db.runAsync('UPDATE plants SET water_every_days = ?, water_cold_days = ? WHERE id = ?', waterEveryDays, waterColdDays, plantId);
+      await db.runAsync(
+        `UPDATE tasks SET repeat_days = ?, cold_repeat_days = ? WHERE plant_id = ? AND type = 'water'
+         AND repeat_days IS NOT NULL AND ends_on IS NULL AND done_on IS NULL`,
+        waterEveryDays, waterColdDays, plantId,
+      );
+    }
+    // Frost care for a pot (bring it in) isn't the one for the ground (cover it).
+    const tender = kindFor(plant.preset)?.tender ?? customFor(plant.preset)?.tender ?? false;
+    const swap = placementCare(plan, day, { tender, young: false }, plant.potted, potted);
+    for (const t of swap.drop) {
+      await db.runAsync('DELETE FROM tasks WHERE plant_id = ? AND title = ? AND months IS NOT NULL AND done_on IS NULL', plantId, t);
+    }
+    for (const t of swap.add) await insertTask(db, plantId, t);
+    await db.runAsync(`INSERT INTO task_log (plant_id, type, title, done_on) VALUES (?, 'transplant', ?, ?)`, plantId, title, day);
+    if (move.holdFeeding) {
+      const until = addDays(day, REPOT_NO_FEED_DAYS);
+      await db.runAsync(
+        `UPDATE tasks SET due_on = ? WHERE plant_id = ? AND type = 'fertilize' AND done_on IS NULL AND due_on < ?`,
+        until, plantId, until,
       );
     }
     for (const t of tasks) await insertTask(db, plantId, t);

@@ -73,6 +73,10 @@ const SAVED_EN: Record<string, string> = {
   'Pronta da trapiantare': 'Ready to transplant',
   'Messa a dimora': 'Planted out',
   'Messa nel vaso definitivo': 'Potted up',
+  'Messa in vaso': 'Moved into a pot',
+  'Messa in terra': 'Moved into the ground',
+  'Rinvaso': 'Repotted',
+  Spostata: 'Moved',
 };
 let toItalian: Record<string, string> | null = null;
 let toItalianGeneration = -1;

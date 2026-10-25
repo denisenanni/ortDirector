@@ -81,6 +81,21 @@ const establish = (every: number, until: number): PlanStep => ({
   until,
 });
 
+/**
+ * Care after moving a plant that was already in place (into a pot, back in
+ * the ground, a bigger pot), counted from the move. Its roots get disturbed
+ * like at a transplant: water it in, keep an eye on the soil and on how it
+ * takes it. Not for one plant: it's the same for all.
+ */
+export const REPOT_STEPS: PlanStep[] = [
+  { type: 'water', title: 'Annaffiare bene dopo il rinvaso', day: 0 },
+  { type: 'check', title: 'Controllare il terriccio (annaffiare solo se asciutto)', day: 2, every: 2, until: 14 },
+  { type: 'check', title: 'Controllare che non soffra (foglie mosce o gialle)', day: 5 },
+];
+
+/** Fresh roots burn: no feeding for this many days after a move. */
+export const REPOT_NO_FEED_DAYS = 21;
+
 // Rough guidelines for a temperate Italian garden, keyed by catalog name.
 // Steps of summer crops are limited to their season, so a late transplant
 // doesn't schedule a tomato harvest in January. Perennials have `seasonal`
@@ -555,6 +570,25 @@ export function seasonalTasks(
     yearly: !s.every,
     months: s.months,
   }));
+}
+
+/**
+ * Seasonal care that changes when a plant goes from the ground to a pot or
+ * back: titles of the old place's tasks to drop, and the new place's to add.
+ */
+export function placementCare(
+  plan: CropPlan | undefined,
+  today: DayString,
+  care: Omit<CareContext, 'potted'>,
+  from: boolean,
+  to: boolean,
+): { drop: string[]; add: PlannedTask[] } {
+  if (from === to) return { drop: [], add: [] };
+  const byPot: CropPlan = { steps: [], seasonal: (plan?.seasonal ?? []).filter((s) => s.only && 'potted' in s.only) };
+  return {
+    drop: seasonalTasks(byPot, today, { ...care, potted: from }).map((t) => t.title),
+    add: seasonalTasks(byPot, today, { ...care, potted: to }),
+  };
 }
 
 /**
