@@ -356,3 +356,18 @@ test('moving a potted plant into a bigger pot keeps its seasonal care and can le
   assert.equal((await db.getPlant(d, id))!.potSize, 'large');
   assert.deepEqual((await db.listPlantLog(d, id)).map((e) => e.title), ['Rinvaso']);
 });
+
+test('a pot brought indoors for winter can go back in the ground in spring, and the frost care follows it', async () => {
+  const d = await fresh();
+  const id = await db.createPlant(d, plant({ name: 'Avocado', preset: 'Avocado' }));
+  const move = { size: 'medium' as const, watering: null, zoneId: null, holdFeeding: false };
+  await db.movePlant(d, id, '2026-10-24', [], { ...move, potted: true, potSize: 'medium', covered: true });
+  await db.movePlant(d, id, '2027-04-10', [], { ...move, potted: false, potSize: null, covered: false });
+
+  const after = (await db.getPlant(d, id)) as Plant;
+  assert.deepEqual([after.potted, after.potSize, after.covered, after.plantedOn], [false, null, false, '2027-04-10']);
+  const titles = (await tasksOf(d, id)).map((t) => t.title);
+  assert.ok(titles.includes('Pacciamare e coprire con tessuto non tessuto'));
+  assert.ok(!titles.includes('Mettere al riparo dal gelo'));
+  assert.deepEqual((await db.listPlantLog(d, id)).map((e) => e.title), ['Messa in terra', 'Messa in vaso']);
+});

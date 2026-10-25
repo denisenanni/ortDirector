@@ -7,7 +7,7 @@ import { createPlant, deletePlant, getPlant, listZones, transplant, updatePlant,
 import { syncReminders } from '@/lib/notifications';
 import { PLANT_KINDS, kindFor } from '@/lib/kinds';
 import { expandPlan, planFor } from '@/lib/plans';
-import { PLANT_SIZE_LABEL, POT_SIZE_LABEL, SUN_LABEL, catalog, everyDays, isAnnual, presetFor, searchPresets } from '@/lib/presets';
+import { PLANT_SIZE_LABEL, POT_LABEL, POT_SIZE_LABEL, SUN_LABEL, catalog, everyDays, isAnnual, presetFor, searchPresets } from '@/lib/presets';
 import { customFor } from '@/lib/custom';
 import { deletePhoto } from '@/lib/photos';
 import { sunMismatch, today as getToday } from '@/lib/schedule';
@@ -290,15 +290,26 @@ export default function EditPlantScreen() {
           )}
 
           {editingId !== null && form.stage === 'ground' ? (
+            // Going from the ground to a pot or into another pot is something that happens to the
+            // plant, with care after it and a line in its history: it has its own screen.
             <Field label={tr('Dove', 'Where')}>
-              <ChipRow>
-                <Chip icon="ground" label={tr('In terra', 'In the ground')} selected={!form.potted} onPress={() => setWatering({ potted: false })} />
-                <Chip
-                  label={tr('In vaso', 'In a pot')}
-                  selected={form.potted}
-                  onPress={() => setWatering({ potted: true, potSize: form.potSize ?? 'medium' })}
-                />
-              </ChipRow>
+              <Body>
+                {form.potted
+                  ? `${tr('In vaso', 'In a pot')}${form.potSize ? ` (${POT_LABEL[form.potSize].toLowerCase()})` : ''}`
+                  : tr('In terra', 'In the ground')}
+              </Body>
+              <Body muted style={{ marginTop: 4, marginBottom: 8 }}>
+                {tr(
+                  'Per metterla in vaso, in terra o in un vaso nuovo usa “Rinvasa o sposta”: aggiunge le cure dopo e lo segna nello storico.',
+                  'To put it in a pot, in the ground or in a new pot use “Repot or move”: it adds the care after it and logs it.',
+                )}
+              </Body>
+              <Button
+                kind="secondary"
+                icon="transplant"
+                label={tr('Rinvasa o sposta', 'Repot or move')}
+                onPress={() => router.replace({ pathname: '/plant/move', params: { id: String(editingId) } })}
+              />
             </Field>
           ) : null}
 
@@ -311,7 +322,7 @@ export default function EditPlantScreen() {
               </ChipRow>
             </Field>
           ) : null}
-          {inPlace && potted ? (
+          {editingId === null && inPlace && potted ? (
             <Field label={tr('Quanto è grande il vaso', 'How big the pot is')}>
               <ChipRow>
                 {SIZES.map((k) => (
