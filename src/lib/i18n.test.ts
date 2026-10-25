@@ -4,7 +4,7 @@ import { afterEach, test } from 'node:test';
 import { CATALOG_EN } from './catalog-en.ts';
 import { cat, local, locale, setLanguage, tr } from './i18n.ts';
 import { PLANT_KINDS } from './kinds.ts';
-import { planFor } from './plans.ts';
+import { REPOT_STEPS, planFor } from './plans.ts';
 import { PLANT_PRESETS, SUN_LABEL, TASK_LABEL, monthsLabel, presetFor, repeatLabel, searchPresets } from './presets.ts';
 import { relativeLabel } from './schedule.ts';
 
@@ -17,6 +17,7 @@ test('every catalog text has an English version', () => {
     const texts = [p.name, p.tip, ...(plan?.steps ?? []).map((s) => s.title), ...(plan?.seasonal ?? []).map((s) => s.title)];
     for (const text of texts) if (!(text in CATALOG_EN)) missing.push(text);
   }
+  for (const s of REPOT_STEPS) if (!(s.title in CATALOG_EN)) missing.push(s.title);
   assert.deepEqual([...new Set(missing)], []);
 });
 

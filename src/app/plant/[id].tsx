@@ -312,6 +312,14 @@ export default function PlantScreen() {
             onPress={() => router.push({ pathname: '/plant/transplant', params: { id: String(plant.id) } })}
           />
         )}
+        {plant.stage === 'ground' && !plant.archivedOn && (
+          <Button
+            kind="secondary"
+            icon="transplant"
+            label={tr('Rinvasa o sposta', 'Repot or move')}
+            onPress={() => router.push({ pathname: '/plant/move', params: { id: String(plant.id) } })}
+          />
+        )}
 
         {!plant.archivedOn && (
           <>

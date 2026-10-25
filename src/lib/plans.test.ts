@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PLANS, expandPlan, regularWateringFrom, seasonalTasks, transplantReminder } from './plans.ts';
+import { PLANS, REPOT_STEPS, expandPlan, placementCare, regularWateringFrom, seasonalTasks, transplantReminder } from './plans.ts';
 import { PLANT_KINDS } from './kinds.ts';
 import { plantWatering, scaledWatering } from './watering.ts';
 import { PLANT_PRESETS, isAnnual, presetFor } from './presets.ts';
@@ -160,4 +160,27 @@ test('kinds are perennial unless annual, and found only as a preset', () => {
   assert.equal(isAnnual('Avocado'), false);
   assert.equal(presetFor({ preset: 'Siepe', name: 'Lauroceraso' })?.name, 'Siepe');
   assert.equal(presetFor({ preset: null, name: 'Siepe' }), undefined);
+});
+
+test('moving between ground and pot swaps only the care that depends on it', () => {
+  const plan = PLANS.Avocado;
+  const care = { tender: false, young: false };
+  const toPot = placementCare(plan, '2026-10-25', care, false, true);
+  assert.deepEqual(toPot.drop, ['Pacciamare e coprire con tessuto non tessuto', 'Togliere la protezione invernale']);
+  assert.deepEqual(toPot.add.map((t) => [t.title, t.dueOn]), [
+    ['Controllare se serve un vaso più grande', '2027-03-01'],
+    ['Mettere al riparo dal gelo', '2026-11-01'],
+    ['Riportare fuori', '2027-04-01'],
+  ]);
+  assert.deepEqual(placementCare(plan, '2026-10-25', care, true, true), { drop: [], add: [] });
+  assert.deepEqual(placementCare(PLANS.Basilico, '2026-10-25', care, false, true), { drop: [], add: [] });
+});
+
+test('after-care of a move: water it in, then check the soil every 2 days for two weeks', () => {
+  const tasks = expandPlan(REPOT_STEPS, '2026-10-25', '2026-10-25');
+  assert.deepEqual(tasks.map((t) => [t.type, t.dueOn, t.repeatDays, t.endsOn]), [
+    ['water', '2026-10-25', null, null],
+    ['check', '2026-10-27', 2, '2026-11-08'],
+    ['check', '2026-10-30', null, null],
+  ]);
 });

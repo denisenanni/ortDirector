@@ -122,6 +122,7 @@ Archiviare un'annuale a fine stagione cancella le sue attività aperte e tiene l
 2. **Segni il trapianto.** La schermata propone i passi del piano contati dal giorno del trapianto e chiede vaso e taglie. I passi che non vuoi si tolgono.
 3. **Cosa scrive `transplant()`**: pianta a dimora con data e taglie, intervallo d'acqua ricalcolato con le tabelle sopra, "Pronta da trapiantare" chiusa, una riga nello storico, i passi scelti creati. Se il piano ha un'annaffiatura di attecchimento (pomodoro: ogni giorno per 2 settimane), quella normale viene spostata a dopo la sua fine, così non annaffi due volte.
 4. **Trapianto con data passata.** I passi singoli già passati vengono saltati, quelli ripetuti partono dalla prossima data utile da oggi. Così segnare un trapianto vecchio non riempie Oggi di ritardi.
+5. **Rinvaso o spostamento** (pianta già a dimora: dalla terra al vaso, a un vaso più grande, in casa). Il pulsante "Rinvasa o sposta" nella scheda chiede data, terra o vaso, taglie, zona e al coperto. `movePlant()` salva il posto nuovo e ricalcola l'acqua, scrive nello storico "Messa in vaso", "Messa in terra" o "Rinvaso", aggiunge le cure dopo lo spostamento (`REPOT_STEPS`: annaffiare bene il giorno stesso, controllare il terriccio ogni 2 giorni per 2 settimane, controllare al quinto giorno che non soffra) e, se lasci acceso "Niente concime per un po'", sposta le concimazioni dei prossimi 21 giorni a dopo. Se cambia tra terra e vaso, scambia anche le cure stagionali che ne dipendono: per un vaso "Mettere al riparo dal gelo" e "Riportare fuori", per la terra pacciamare e coprire.
 
 ## Catalogo da file
 
@@ -148,11 +149,11 @@ Una notifica al giorno, all'ora scelta in Impostazioni (8 di default), per i pro
 | `plans.test.ts` | Piani di cura, tabelle dell'acqua, tipi di pianta |
 | `catalogFile.test.ts`, `backup.test.ts` | Lettura dei file di catalogo e di backup |
 | `i18n.test.ts` | Traduzioni del catalogo e delle etichette |
-| `db.test.ts` | Cosa scrive ogni azione su un SQLite vero in memoria: spunta, pioggia, trapianto, archivio, zone, catalogo, backup |
+| `db.test.ts` | Cosa scrive ogni azione su un SQLite vero in memoria: spunta, pioggia, trapianto, rinvaso, archivio, zone, catalogo, backup |
 | `migrations.test.ts` | Un giardino a ogni versione vecchia del database, aggiornato all'ultima |
 
 `db.test.ts` e `migrations.test.ts` usano `memoryDb.ts`: il SQLite di Node dietro i pochi metodi di expo-sqlite che `db.ts` usa.
 
-`yarn e2e` prova l'app intera nel browser (Playwright su Chromium, a misura di iPhone): costruisce la versione web, la apre e usa le schermate vere come faresti sul telefono. I percorsi sono in `e2e/garden.spec.ts`: aggiungere una pianta e spuntarla, la pioggia con le piante al coperto, semina e trapianto, l'avviso sole della zona, un'attività rimandata, il backup portato su un altro "telefono". Ogni test parte da un orto vuoto il 15 giugno 2026, così le date non dipendono da quando gira. Su GitHub gira a ogni pull request, accanto a `yarn test`.
+`yarn e2e` prova l'app intera nel browser (Playwright su Chromium, a misura di iPhone): costruisce la versione web, la apre e usa le schermate vere come faresti sul telefono. I percorsi sono in `e2e/garden.spec.ts`: aggiungere una pianta e spuntarla, la pioggia con le piante al coperto, semina e trapianto, il basilico messo in vaso in casa, l'avviso sole della zona, un'attività rimandata, il backup portato su un altro "telefono". Ogni test parte da un orto vuoto il 15 giugno 2026, così le date non dipendono da quando gira. Su GitHub gira a ogni pull request, accanto a `yarn test`.
 
 Per l'app iOS vera ci sono i percorsi Maestro in `.maestro/` (`yarn maestro`, solo sul Mac con il simulatore): gli stessi giri principali più le notifiche negate. Non girano su GitHub. Restano senza test automatici fotocamera, foglio di condivisione e date picker di iOS.
