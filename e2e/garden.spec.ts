@@ -103,6 +103,13 @@ test('basil in the ground goes into a pot indoors and gets the care after the mo
   await expect(page.getByText(/Controllare che non soffra/)).toHaveCount(0);
   await expect(page.getByText('Messa in vaso')).toBeVisible();
   await expect(page.getByText(/Nel vaso dal/)).toBeVisible();
+
+  // Editing the plant can't flip it back to the ground: that's a move too.
+  await page.getByRole('button', { name: 'Modifica pianta' }).click();
+  await page.waitForURL(/\/plant\/edit/);
+  await expect(page.getByText('In vaso (vaso medio)')).toBeVisible();
+  await expect(page.getByRole('button', { name: /In terra$/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Rinvasa o sposta/ })).toBeVisible();
 });
 
 test('a zone in the shade warns about a plant that wants full sun', async ({ page }) => {
