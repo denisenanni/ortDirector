@@ -185,3 +185,16 @@ test('the plant’s watering is changed from the plant, not from the task', asyn
   await page.waitForURL(new RegExp(`/plant/edit\\?id=${id}$`));
   await expect(page.getByText('Irrigazione da maggio a settembre')).toBeVisible();
 });
+
+test('a zone created while moving a plant is picked for it', async ({ page }) => {
+  const id = await addPlant(page, 'Basilico');
+  await page.getByRole('button', { name: /Rinvasa o sposta/ }).click();
+  await page.getByRole('button', { name: /Nuova zona$/ }).click();
+  await page.getByPlaceholder(/Aiuola nord/).fill('Balcone');
+  await page.getByRole('button', { name: 'Salva' }).click();
+  await page.waitForURL(/\/plant\/move/);
+  await expect(page.getByRole('button', { name: /Balcone$/ })).toBeVisible();
+  await page.getByRole('button', { name: /Segna lo spostamento/ }).click();
+  await page.waitForURL(new RegExp(`/plant/${id}$`));
+  await expect(page.getByText('Balcone').first()).toBeVisible();
+});

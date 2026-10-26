@@ -3,14 +3,15 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { Body, Button, Chip, ChipRow, Field, PastDayPicker, Screen, ToggleRow } from '@/components/ui';
-import { getPlant, listZones, transplant } from '@/lib/db';
+import { getPlant, transplant } from '@/lib/db';
 import { syncReminders } from '@/lib/notifications';
 import { expandPlan, planFor } from '@/lib/plans';
 import { PLANT_SIZE_LABEL, POT_SIZE_LABEL, everyDays, presetFor, repeatLabel } from '@/lib/presets';
 import { daysBetween, fromDay, today as getToday } from '@/lib/schedule';
-import type { Plant, Size, Zone } from '@/lib/types';
+import type { Plant, Size } from '@/lib/types';
 import { plantWatering } from '@/lib/watering';
-import { SUN_SYMBOL, TASK_SYMBOL } from '@/components/Icon';
+import { TASK_SYMBOL } from '@/components/Icon';
+import { ZoneChips, useZones } from '@/components/ZoneChips';
 import { cat, locale, tr } from '@/lib/i18n';
 
 const SIZES: Size[] = ['small', 'medium', 'large'];
@@ -26,15 +27,15 @@ export default function TransplantScreen() {
   // A seedling going out is small; the pot is the user's guess to make.
   const [size, setSize] = useState<Size>('small');
   const [potSize, setPotSize] = useState<Size>('medium');
-  const [zones, setZones] = useState<Zone[]>([]);
   const [zoneId, setZoneId] = useState<number | null>(null);
+  // A zone just created from here gets selected.
+  const zones = useZones(setZoneId);
   // A seedbed indoors is under cover; where it goes out is usually not.
   const [covered, setCovered] = useState(false);
   // Plan steps (by index) the user switched off for this plant.
   const [skipped, setSkipped] = useState<Set<number>>(new Set());
 
   useEffect(() => {
-    listZones(db).then(setZones);
     getPlant(db, plantId).then((p) => {
       setPlant(p);
       if (!p) return;
@@ -75,7 +76,13 @@ export default function TransplantScreen() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
-        <Field label={tr(`Quando hai messo a dimora ${plant.name.toLowerCase()}?`, `When did you plant out the ${plant.name.toLowerCase()}?`)}>
+        <Field
+          label={
+            potted
+              ? tr(`Quando hai messo ${plant.name.toLowerCase()} nel vaso?`, `When did you pot up the ${plant.name.toLowerCase()}?`)
+              : tr(`Quando hai messo a dimora ${plant.name.toLowerCase()}?`, `When did you plant out the ${plant.name.toLowerCase()}?`)
+          }
+        >
           <PastDayPicker value={day} onChange={setDay} today={today} />
         </Field>
 
@@ -104,12 +111,7 @@ export default function TransplantScreen() {
         ) : null}
 
         <Field label={tr('Zona', 'Zone')}>
-          <ChipRow>
-            <Chip label={tr('Nessuna', 'None')} selected={zoneId === null} onPress={() => setZoneId(null)} />
-            {zones.map((z) => (
-              <Chip key={z.id} icon={SUN_SYMBOL[z.sun]} label={z.name} selected={zoneId === z.id} onPress={() => setZoneId(z.id)} />
-            ))}
-          </ChipRow>
+          <ZoneChips zones={zones} value={zoneId} onChange={setZoneId} />
           <View style={{ marginTop: 12 }}>
             <ToggleRow
               label={tr('Al coperto', 'Under cover')}
@@ -128,8 +130,8 @@ export default function TransplantScreen() {
         {watering && plant.waterEveryDays ? (
           <Body muted style={{ marginBottom: 18 }}>
             {tr(
-              `Da maggio a settembre la annaffierai ${everyDays(watering.waterEveryDays)}.`,
-              `From May to September you’ll water it ${everyDays(watering.waterEveryDays)}.`,
+              `Da maggio a settembre la annaffierai ${everyDays(watering.waterEveryDays)}, il resto dell’anno ${everyDays(watering.waterColdDays)}.`,
+              `From May to September you’ll water it ${everyDays(watering.waterEveryDays)}, the rest of the year ${everyDays(watering.waterColdDays)}.`,
             )}
           </Body>
         ) : null}
