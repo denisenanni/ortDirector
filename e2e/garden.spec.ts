@@ -175,6 +175,29 @@ test('a backup brings the garden to another phone', async ({ page, browser }) =>
   await other.close();
 });
 
+test('a big photo is stored shrunk, as JPEG', async ({ page }) => {
+  await addPlant(page, 'Basilico');
+  const png = await page.evaluate(() => {
+    const c = document.createElement('canvas');
+    c.width = 4000;
+    c.height = 3000;
+    c.getContext('2d')!.fillRect(0, 0, 100, 100);
+    return c.toDataURL('image/png').split(',')[1];
+  });
+  const [chooser] = await Promise.all([
+    page.waitForEvent('filechooser'),
+    page.getByRole('button', { name: 'Scegli foto' }).click(),
+  ]);
+  await chooser.setFiles({ name: 'orto.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
+  const img = page.locator('img[src^="data:image/jpeg"]');
+  await expect(img).toHaveCount(1);
+  const size = await img.evaluate(async (el: HTMLImageElement) => {
+    await el.decode();
+    return [el.naturalWidth, el.naturalHeight];
+  });
+  expect(size).toEqual([1280, 960]);
+});
+
 test('the plant’s watering is changed from the plant, not from the task', async ({ page }) => {
   const id = await addPlant(page, 'Basilico');
   await page.goto('/');
