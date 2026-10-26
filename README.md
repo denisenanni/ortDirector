@@ -26,7 +26,7 @@ React Native + Expo (SDK 57), TypeScript, dati solo sul telefono (SQLite), prome
 - **Pioggia e stagioni**: il pulsante "Ha piovuto" in Oggi conta come annaffiate tutte le piante tranne quelle al coperto: nelle zone al coperto o segnate "Al coperto" nel loro form.
   Ogni pianta ha un intervallo di irrigazione da maggio a settembre e uno per il resto dell'anno.
 - **Backup**: in Impostazioni "Esporta backup" crea un file JSON con tutti i dati da salvare su iCloud Drive o dove vuoi;
-  "Importa backup" lo rimette al posto dei dati attuali, dopo una conferma. Le foto non sono nel backup.
+  "Importa backup" lo rimette al posto dei dati attuali, dopo una conferma. Le foto sono nel backup.
 - **Foto**: una per pianta, scattata o scelta dalla libreria, nella sua scheda.
 - **Annuali e perenni**: a fine stagione un'annuale si archivia; le sue attività spariscono, scheda e storico restano in Archivio
   (in fondo a Piante) e si può ripristinare.

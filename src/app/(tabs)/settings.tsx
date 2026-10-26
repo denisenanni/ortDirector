@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react';
 import { Alert, Linking, Platform, ScrollView, View } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { Body, Button, Card, Chip, ChipRow, Field, IconButton, LargeHeader, Screen, SectionHeader, Stepper, useTheme } from '@/components/ui';
-import { parseBackup } from '@/lib/backup';
+import { parseBackup, photoNames } from '@/lib/backup';
 import { parseCatalogFile } from '@/lib/catalogFile';
 import { customEntries } from '@/lib/custom';
 import { confirm } from '@/lib/dialogs';
@@ -22,6 +22,7 @@ import {
 } from '@/lib/db';
 import { fromDay, today } from '@/lib/schedule';
 import { ensurePermission, syncReminders } from '@/lib/notifications';
+import { readPhotos, restorePhotos } from '@/lib/photos';
 import { cat, locale, tr } from '@/lib/i18n';
 import { chooseLanguage, languageChoice, type LanguageChoice } from '@/lib/locale';
 
@@ -69,7 +70,9 @@ export default function SettingsScreen() {
 
   const doExport = async () => {
     try {
-      await saveBackupFile(await exportBackup(db));
+      const backup = await exportBackup(db);
+      backup.photos = await readPhotos(photoNames(backup.tables));
+      await saveBackupFile(backup);
       await setLastBackup(db, today());
       setLast(today());
       setBackupNote(null);
@@ -101,6 +104,7 @@ export default function SettingsScreen() {
     );
     const run = async () => {
       await importBackup(db, backup);
+      restorePhotos(backup.photos, photoNames(backup.tables));
       setBackupNote({ text: tr(`Backup importato: ${summary}.`, `Backup imported: ${summary}.`) });
       getReminderHour(db).then(setHour);
       getLastBackup(db).then(setLast);
@@ -224,8 +228,8 @@ export default function SettingsScreen() {
         <Card>
           <Body muted>
             {tr(
-              'I dati restano solo su questo telefono: se lo perdi, perdi tutto. Esporta un backup ogni tanto e salvalo su iCloud Drive o dove vuoi. Le piante aggiunte al catalogo sono nel backup, le foto no.',
-              'Your data stays on this phone only: lose the phone and you lose everything. Export a backup now and then and keep it on iCloud Drive or wherever you like. Plants added to the catalog are in the backup, photos are not.',
+              'I dati restano solo su questo telefono: se lo perdi, perdi tutto. Esporta un backup ogni tanto e salvalo su iCloud Drive o dove vuoi. Il backup contiene anche le foto e le piante aggiunte al catalogo.',
+              'Your data stays on this phone only: lose the phone and you lose everything. Export a backup now and then and keep it on iCloud Drive or wherever you like. The backup includes photos and the plants added to the catalog.',
             )}
           </Body>
           {lastBackup ? (

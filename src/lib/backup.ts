@@ -1,5 +1,5 @@
 // Backup file format: every table as raw rows, plus the schema version they
-// came from. Pure logic, no React Native imports, so it runs under
+// came from and the plant photos. Pure logic, no React Native imports, so it runs under
 // `node --test` (see backup.test.ts).
 import { tr } from './i18n.ts';
 
@@ -15,10 +15,25 @@ export interface Backup {
   version: number;
   exportedAt: string;
   tables: Record<BackupTable, Row[]>;
+  /** Plant photo files by name, base64. Empty in backups made before photos were included. */
+  photos: Record<string, string>;
 }
 
 export function makeBackup(version: number, tables: Record<BackupTable, Row[]>, now: Date = new Date()): Backup {
-  return { app: 'ortdirector', version, exportedAt: now.toISOString(), tables };
+  return { app: 'ortdirector', version, exportedAt: now.toISOString(), tables, photos: {} };
+}
+
+/** A photo file name the app could have made: nothing that climbs out of the photos folder. */
+const PHOTO_NAME = /^[\w-][\w.-]*$/;
+
+/**
+ * The photo files the plants use. Web photos are data URLs inside the row
+ * and need no file.
+ */
+export function photoNames(tables: Pick<Backup['tables'], 'plants'>): string[] {
+  return tables.plants
+    .map((r) => r.photo)
+    .filter((p): p is string => typeof p === 'string' && PHOTO_NAME.test(p));
 }
 
 /**
@@ -52,9 +67,18 @@ export function parseBackup(text: string, currentVersion: number): Backup {
       throw new Error(tr(`Il backup è danneggiato (tabella ${t}).`, `The backup is damaged (table ${t}).`));
     }
   }
+  const photos = b.photos ?? {};
+  if (
+    typeof photos !== 'object' ||
+    Array.isArray(photos) ||
+    Object.entries(photos).some(([name, data]) => !PHOTO_NAME.test(name) || typeof data !== 'string')
+  ) {
+    throw new Error(tr('Il backup è danneggiato (foto).', 'The backup is damaged (photos).'));
+  }
   return {
     ...(b as Backup),
     tables: { ...b.tables, zones: b.tables.zones ?? [], catalog: b.tables.catalog ?? [] } as Backup['tables'],
+    photos,
   };
 }
 

@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { afterEach, test } from 'node:test';
-import { parseBackup } from './backup.ts';
+import { parseBackup, photoNames } from './backup.ts';
 import { parseCatalogFile } from './catalogFile.ts';
 import { customFor, setCustomCatalog } from './custom.ts';
 import * as db from './db.ts';
@@ -281,6 +281,7 @@ test('a backup restores the same garden on another phone', async () => {
   const zone = await db.saveZone(d, { name: 'Serra', sun: 'partial', covered: true });
   await db.addToCatalog(d, parseCatalogFile(mimosa));
   const id = await db.createPlant(d, plant({ name: 'Rosa', preset: 'Rosa', zoneId: zone }));
+  await db.setPlantPhoto(d, id, 'plant-1-1700000000000.jpg');
   await db.markDone(d, (await waterOf(d, id))[0], '2026-10-20');
   await db.setReminderHour(d, 7);
   const file = JSON.stringify(await db.exportBackup(d));
@@ -294,6 +295,7 @@ test('a backup restores the same garden on another phone', async () => {
   assert.deepEqual(await db.listPlantLog(other, id), await db.listPlantLog(d, id));
   assert.equal(await db.getReminderHour(other), 7);
   assert.ok(customFor('Mimosa tardiva'));
+  assert.deepEqual(photoNames((await db.exportBackup(other)).tables), ['plant-1-1700000000000.jpg']);
 });
 
 test('a backup from before zones and annuals still imports', async () => {
