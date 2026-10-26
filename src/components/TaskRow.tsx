@@ -62,7 +62,7 @@ export function TaskRow({
       <Pressable
         accessibilityRole="checkbox"
         accessibilityLabel={tr(`Segna come fatto: ${task.title}`, `Mark as done: ${task.title}`)}
-        onPress={() => (task.type === 'transplant' ? openTransplant(task) : onDone(task))}
+        onPress={() => (task.type === 'transplant' ? openTransplant(task) : task.moves && task.plantId !== null ? openMoved(task) : onDone(task))}
         hitSlop={12}
         style={[styles.check, { borderColor: overdue ? t.warn : t.accent }]}
       />
@@ -119,6 +119,13 @@ export function openTransplant(task: Pick<TaskWithPlant, 'plantId'>) {
   if (task.plantId !== null) {
     router.push({ pathname: '/plant/transplant', params: { id: String(task.plantId) } });
   }
+}
+
+/** A task that moves the plant is done by saying where it is now. */
+export function openMoved(task: Pick<TaskWithPlant, 'id'>, replace = false) {
+  const to = { pathname: '/task/moved', params: { id: String(task.id) } } as const;
+  if (replace) router.replace(to);
+  else router.push(to);
 }
 
 const styles = StyleSheet.create({

@@ -36,6 +36,7 @@ export default function RootLayout() {
         <Stack.Screen name="plant/move" options={{ presentation: 'modal', title: tr('Rinvaso o spostamento', 'Repot or move') }} />
         <Stack.Screen name="zone/edit" options={{ presentation: 'modal', title: tr('Zona', 'Zone') }} />
         <Stack.Screen name="task/edit" options={{ presentation: 'modal', title: tr('Attività', 'Task') }} />
+        <Stack.Screen name="task/moved" options={{ presentation: 'modal', title: tr('Fatto', 'Done') }} />
       </Stack>
     </SQLiteProvider>
   );

@@ -5,7 +5,7 @@ import { afterEach, test } from 'node:test';
 import { parseCatalogFile } from './catalogFile.ts';
 import { setCustomCatalog } from './custom.ts';
 import { cat, local, setLanguage } from './i18n.ts';
-import { planFor, seasonalTasks } from './plans.ts';
+import { moveTitles, planFor, seasonalTasks } from './plans.ts';
 import { isAnnual, presetFor, searchPresets } from './presets.ts';
 
 afterEach(() => {
@@ -61,6 +61,7 @@ test('parseCatalogFile says what is wrong and where', () => {
   );
   assert.throws(() => parseCatalogFile(file({ ...plant, steps: [{ type: 'dance', title: 'x', day: 0 }] })), /steps\[0\]\.type/);
   assert.throws(() => parseCatalogFile(file({ ...plant, seasonal: [{ type: 'other', title: 'x', months: [1], only: { big: true } }] })), /only/);
+  assert.throws(() => parseCatalogFile(file({ ...plant, seasonal: [{ type: 'other', title: 'x', months: [1], moves: 'away' }] })), /seasonal\[0\]\.moves/);
   assert.throws(() => parseCatalogFile(file({ sun: 'full' })), /catalog\[0\] › name/);
   assert.throws(() => parseCatalogFile(file(plant, plant)), /due volte/);
 });
@@ -85,4 +86,14 @@ test('optional fields default sensibly', () => {
     en: {},
   });
   assert.deepEqual(raw, plant);
+});
+
+test('a seasonal step says it moves the plant, and tasks already saved from it find out', async () => {
+  const seasonal = [{ type: 'other', title: { it: 'Portare in casa', en: 'Bring indoors' }, months: [10], moves: 'in' }];
+  const [{ entry }] = parseCatalogFile(file({ ...plant, seasonal }));
+  assert.equal(entry.plan.seasonal![0].moves, 'in');
+  setCustomCatalog([entry]);
+  assert.equal(seasonalTasks(planFor('Feijoa'), '2026-10-22')[0].moves, 'in');
+  assert.equal(moveTitles().get('Portare in casa'), 'in');
+  assert.equal(moveTitles().get('Bring indoors'), 'in');
 });

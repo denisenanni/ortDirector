@@ -38,7 +38,7 @@
           "months": [4, 5, 6, 7, 8, 9],
           "every": 30
         },
-        { "type": "other", "title": "Controllare se serve un vaso più grande", "months": [5], "only": { "potted": true } },
+        { "type": "other", "title": "Controllare se serve un vaso più grande", "months": [5], "only": { "potted": true }, "moves": "repot" },
         {
           "type": "other",
           "title": { "it": "Proteggere il vaso dal gelo forte (sotto i -5 °C)", "en": "Protect the pot from hard frost (below -5 °C)" },

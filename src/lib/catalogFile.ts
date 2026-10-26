@@ -9,10 +9,11 @@ import { PLANT_KINDS } from './kinds.ts';
 import type { PlanStep, SeasonalStep } from './plans.ts';
 import { CATALOG_EN } from './catalog-en.ts';
 import { PLANT_PRESETS, normalize } from './presets.ts';
-import type { Sun, TaskType } from './types';
+import type { Sun, TaskMove, TaskType } from './types';
 
 const SUNS: Sun[] = ['full', 'partial', 'shade'];
 const TYPES: TaskType[] = ['water', 'check', 'prune', 'fertilize', 'treat', 'harvest', 'other'];
+const MOVES: TaskMove[] = ['in', 'out', 'repot'];
 
 class Bad extends Error {}
 
@@ -133,6 +134,10 @@ export function parseCatalogEntry(raw: unknown, where = ''): CustomEntry {
           only[k as 'potted'] = bool(v, `${p}.only.${k}`);
         }
         step.only = only;
+      }
+      if (s.moves !== undefined) {
+        if (!MOVES.includes(s.moves as TaskMove)) fail(`${p}.moves`, 'usa "in", "out" o "repot"', 'use "in", "out" or "repot"');
+        step.moves = s.moves as TaskMove;
       }
       return step;
     });

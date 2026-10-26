@@ -48,6 +48,8 @@ const SCHEMA: Record<number, string> = {
     CREATE TABLE catalog (name TEXT PRIMARY KEY NOT NULL, entry TEXT NOT NULL);
     ALTER TABLE plants ADD COLUMN size TEXT;
     ALTER TABLE plants ADD COLUMN pot_size TEXT;`,
+  7: `
+    ALTER TABLE plants ADD COLUMN covered INTEGER NOT NULL DEFAULT 0;`,
 };
 
 // A garden as the app of that version would have saved it: a rose and basil
@@ -152,3 +154,17 @@ for (let version = 1; version < db.DATABASE_VERSION; version++) {
     assert.equal((await db.listPlants(d)).length, 4);
   });
 }
+
+test('frost tasks saved before v8 learn they move the plant, in either language', async () => {
+  const d = gardenAt(7);
+  insert(d, 'tasks', [
+    { id: 10, plant_id: 1, type: 'other', title: 'Mettere al riparo dal gelo', due_on: '2026-11-01', yearly: 1, months: '11' },
+    { id: 11, plant_id: 1, type: 'other', title: 'Move back outside', due_on: '2027-04-01', yearly: 1, months: '4' },
+    { id: 12, plant_id: 1, type: 'other', title: 'Controllare se serve un vaso più grande', due_on: '2027-03-01', yearly: 1, months: '3' },
+    // Written by hand, not seasonal: left alone.
+    { id: 13, plant_id: 1, type: 'other', title: 'Riportare fuori', due_on: '2026-11-02' },
+  ]);
+  await db.migrate(d);
+  const moves = (await db.listPlantTasks(d, 1)).filter((t) => t.type === 'other').map((t) => [t.id, t.moves]);
+  assert.deepEqual(moves, [[10, 'in'], [13, null], [12, 'repot'], [11, 'out']]);
+});

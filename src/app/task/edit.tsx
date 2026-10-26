@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
-import { openTransplant } from '@/components/TaskRow';
+import { openMoved, openTransplant } from '@/components/TaskRow';
 import { Body, Button, Chip, ChipRow, Field, Input, Screen, Stepper } from '@/components/ui';
 import {
   createTask,
@@ -99,6 +99,8 @@ export default function EditTaskScreen() {
             <>
               {existing.type === 'transplant' ? (
                 <Button icon="transplant" label={tr('Segna il trapianto', 'Mark as transplanted')} onPress={() => openTransplant(existing)} />
+              ) : existing.moves && existing.plantId !== null ? (
+                <Button icon="tick" label={tr('Fatto oggi', 'Done today')} onPress={() => openMoved(existing, true)} />
               ) : (
                 <Button
                   icon="tick"

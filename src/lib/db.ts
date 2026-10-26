@@ -3,15 +3,15 @@ import { BACKUP_TABLES, insertFor, makeBackup, type Backup, type Row } from './b
 import { parseCatalogEntry } from './catalogFile.ts';
 import { customEntries, customFor, setCustomCatalog, type CustomEntry } from './custom.ts';
 import { kindFor } from './kinds.ts';
-import { REPOT_NO_FEED_DAYS, placementCare, planFor, regularWateringFrom, seasonalTasks, transplantReminder, type CareContext, type PlannedTask } from './plans.ts';
+import { REPOT_NO_FEED_DAYS, moveTitles, placementCare, planFor, regularWateringFrom, seasonalTasks, transplantReminder, type CareContext, type PlannedTask } from './plans.ts';
 import { local, tr } from './i18n.ts';
 import { isAnnual, presetFor } from './presets.ts';
 import { addDays, afterRain, completeTask, today } from './schedule.ts';
 import { coldWateringDefault } from './watering.ts';
-import type { DayString, DoneEntry, LogEntry, Plant, Size, Stage, Sun, Task, TaskType, TaskWithPlant, Zone } from './types';
+import type { DayString, DoneEntry, LogEntry, Plant, Size, Stage, Sun, Task, TaskMove, TaskType, TaskWithPlant, Zone } from './types';
 
 export const DATABASE_NAME = 'ortdirector.db';
-export const DATABASE_VERSION = 7;
+export const DATABASE_VERSION = 8;
 
 export async function migrate(db: SQLiteDatabase) {
   await db.execAsync('PRAGMA foreign_keys = ON;');
@@ -156,7 +156,17 @@ export async function migrate(db: SQLiteDatabase) {
     await db.execAsync(`ALTER TABLE plants ADD COLUMN covered INTEGER NOT NULL DEFAULT 0;`);
     version = 7;
   }
-  // Future migrations: if (version === 7) { ...; version = 8; }
+  if (version === 7) {
+    // Tasks that move the plant, and where a move from a task took it from, to
+    // undo it and to bring it back. loadCatalog marks the tasks already there.
+    await db.execAsync(`
+      ALTER TABLE tasks ADD COLUMN moves TEXT;
+      ALTER TABLE task_log ADD COLUMN prev_zone_id INTEGER REFERENCES zones(id) ON DELETE SET NULL;
+      ALTER TABLE task_log ADD COLUMN prev_covered INTEGER;
+    `);
+    version = 8;
+  }
+  // Future migrations: if (version === 8) { ...; version = 9; }
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
   await loadCatalog(db);
 }
@@ -199,6 +209,7 @@ interface TaskRow {
   yearly: number;
   months: string | null;
   cold_repeat_days: number | null;
+  moves: TaskMove | null;
   done_on: string | null;
   notes: string | null;
   plant_name?: string | null;
@@ -240,6 +251,7 @@ const toTask = (r: TaskRow): TaskWithPlant => ({
   yearly: r.yearly === 1,
   months: r.months ? r.months.split(',').map(Number) : null,
   coldRepeatDays: r.cold_repeat_days,
+  moves: r.moves ?? null,
   doneOn: r.done_on,
   notes: r.notes,
   plantName: r.plant_name === null || r.plant_name === undefined ? null : local(r.plant_name),
@@ -521,13 +533,17 @@ const monthsText = (months: number[] | null) => (months?.length ? months.join(',
 async function insertTask(
   db: SQLiteDatabase,
   plantId: number | null,
-  t: Omit<TaskInput, 'plantId' | 'notes' | 'coldRepeatDays'> & { notes?: string | null; coldRepeatDays?: number | null },
+  t: Omit<TaskInput, 'plantId' | 'notes' | 'coldRepeatDays'> & {
+    notes?: string | null;
+    coldRepeatDays?: number | null;
+    moves?: TaskMove | null;
+  },
 ): Promise<number> {
   const res = await db.runAsync(
-    `INSERT INTO tasks (plant_id, type, title, due_on, repeat_days, ends_on, yearly, months, cold_repeat_days, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO tasks (plant_id, type, title, due_on, repeat_days, ends_on, yearly, months, cold_repeat_days, notes, moves)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     plantId, t.type, t.title, t.dueOn, t.repeatDays, t.endsOn, t.yearly ? 1 : 0, monthsText(t.months),
-    t.coldRepeatDays ?? null, t.notes ?? null,
+    t.coldRepeatDays ?? null, t.notes ?? null, t.moves ?? null,
   );
   return res.lastInsertRowId;
 }
@@ -569,14 +585,32 @@ export async function deleteTask(db: SQLiteDatabase, id: number) {
   await db.runAsync('DELETE FROM tasks WHERE id = ?', id);
 }
 
-/** Logs the task as done; repeating tasks move to their next due day. */
-export async function markDone(db: SQLiteDatabase, task: Task, doneOn: DayString = today()) {
+/** Where a plant stands: its zone, and whether it's under cover there. */
+export interface Spot {
+  zoneId: number | null;
+  covered: boolean;
+}
+
+/**
+ * Logs the task as done; repeating tasks move to their next due day. With a
+ * `spot`, the task took the plant there (under cover for the winter, back
+ * out): the plant moves, and the log keeps where it was, to undo it.
+ */
+export async function markDone(db: SQLiteDatabase, task: Task, doneOn: DayString = today(), spot: Spot | null = null) {
   const next = completeTask(task, doneOn);
+  const from =
+    spot && task.plantId !== null
+      ? await db.getFirstAsync<{ zone_id: number | null; covered: number }>('SELECT zone_id, covered FROM plants WHERE id = ?', task.plantId)
+      : null;
   await db.withTransactionAsync(async () => {
     await db.runAsync(
-      'INSERT INTO task_log (task_id, plant_id, type, title, done_on, prev_due_on) VALUES (?, ?, ?, ?, ?, ?)',
-      task.id, task.plantId, task.type, task.title, doneOn, task.dueOn,
+      `INSERT INTO task_log (task_id, plant_id, type, title, done_on, prev_due_on, prev_zone_id, prev_covered)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      task.id, task.plantId, task.type, task.title, doneOn, task.dueOn, from?.zone_id ?? null, from ? from.covered : null,
     );
+    if (spot && from) {
+      await db.runAsync('UPDATE plants SET zone_id = ?, covered = ? WHERE id = ?', spot.zoneId, spot.covered ? 1 : 0, task.plantId);
+    }
     if (next.dueOn) {
       await db.runAsync('UPDATE tasks SET due_on = ? WHERE id = ?', next.dueOn, task.id);
     } else {
@@ -599,12 +633,20 @@ export async function listDoneOn(db: SQLiteDatabase, day: DayString = today()): 
 
 /**
  * Un-ticks a task: it goes back to the day it was due and leaves the
- * history. Ticks from before v5 didn't save that day, so those go back to
- * the day they were ticked. Transplants (no task) can't be undone here.
+ * history; a plant the task moved goes back where it was. Ticks from before
+ * v5 didn't save that day, so those go back to the day they were ticked.
+ * Transplants (no task) can't be undone here.
  */
 export async function undoDone(db: SQLiteDatabase, entry: DoneEntry) {
   if (entry.taskId === null) return;
+  const moved = await db.getFirstAsync<{ prev_zone_id: number | null; prev_covered: number | null }>(
+    'SELECT prev_zone_id, prev_covered FROM task_log WHERE id = ?',
+    entry.id,
+  );
   await db.withTransactionAsync(async () => {
+    if (moved && moved.prev_covered !== null && entry.plantId !== null) {
+      await db.runAsync('UPDATE plants SET zone_id = ?, covered = ? WHERE id = ?', moved.prev_zone_id, moved.prev_covered, entry.plantId);
+    }
     await db.runAsync(
       'UPDATE tasks SET due_on = ?, done_on = NULL WHERE id = ?',
       entry.prevDueOn ?? entry.doneOn, entry.taskId,
@@ -699,6 +741,20 @@ export async function listPlantLog(db: SQLiteDatabase, plantId: number, limit = 
   return rows.map((e) => ({ ...e, title: local(e.title) }));
 }
 
+/**
+ * Where the plant stood before it last went under cover for the winter,
+ * for bringing it back out. Null when it never went in from a task.
+ */
+export async function spotBeforeShelter(db: SQLiteDatabase, plantId: number): Promise<Spot | null> {
+  const row = await db.getFirstAsync<{ prev_zone_id: number | null; prev_covered: number }>(
+    `SELECT l.prev_zone_id, l.prev_covered FROM task_log l JOIN tasks t ON t.id = l.task_id
+     WHERE l.plant_id = ? AND t.moves = 'in' AND l.prev_covered IS NOT NULL
+     ORDER BY l.done_on DESC, l.id DESC LIMIT 1`,
+    plantId,
+  );
+  return row ? { zoneId: row.prev_zone_id, covered: row.prev_covered === 1 } : null;
+}
+
 // --- Zones -----------------------------------------------------------------
 
 interface ZoneRow {
@@ -747,7 +803,12 @@ export async function deleteZone(db: SQLiteDatabase, id: number) {
 
 // --- Catalog added from files ------------------------------------------------
 
-/** Reads the added plants into the catalog. A row that no longer checks out is skipped, not fatal. */
+/**
+ * Reads the added plants into the catalog. A row that no longer checks out
+ * is skipped, not fatal. Then marks the seasonal tasks that move the plant
+ * and don't say so yet: saved before v8, restored from an older backup, or
+ * from a file that only now says it.
+ */
 export async function loadCatalog(db: SQLiteDatabase) {
   const rows = await db.getAllAsync<{ name: string; entry: string }>('SELECT * FROM catalog ORDER BY name COLLATE NOCASE');
   const entries: CustomEntry[] = [];
@@ -759,6 +820,9 @@ export async function loadCatalog(db: SQLiteDatabase) {
     }
   }
   setCustomCatalog(entries);
+  for (const [title, moves] of moveTitles()) {
+    await db.runAsync('UPDATE tasks SET moves = ? WHERE moves IS NULL AND months IS NOT NULL AND title = ?', moves, title);
+  }
 }
 
 /** Adds the plants to the catalog; one with the name of an added plant replaces it. */
