@@ -1,9 +1,9 @@
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { Body, Button, Chip, ChipRow, Field, Input, PastDayPicker, Screen, Stepper, ToggleRow, useTheme } from '@/components/ui';
-import { createPlant, deletePlant, getPlant, listZones, transplant, updatePlant, type PlantInput } from '@/lib/db';
+import { createPlant, deletePlant, getPlant, transplant, updatePlant, type PlantInput } from '@/lib/db';
 import { syncReminders } from '@/lib/notifications';
 import { PLANT_KINDS, kindFor } from '@/lib/kinds';
 import { expandPlan, planFor } from '@/lib/plans';
@@ -11,9 +11,10 @@ import { PLANT_SIZE_LABEL, POT_LABEL, POT_SIZE_LABEL, SUN_LABEL, catalog, everyD
 import { customFor } from '@/lib/custom';
 import { deletePhoto } from '@/lib/photos';
 import { sunMismatch, today as getToday } from '@/lib/schedule';
-import type { Size, Sun, Zone } from '@/lib/types';
+import type { Size, Sun } from '@/lib/types';
 import { plantWatering } from '@/lib/watering';
 import { SUN_SYMBOL } from '@/components/Icon';
+import { ZoneChips, useZones } from '@/components/ZoneChips';
 import { capitalize, cat, tr } from '@/lib/i18n';
 
 const SUNS: Sun[] = ['full', 'partial', 'shade'];
@@ -69,24 +70,13 @@ export default function EditPlantScreen() {
   const [tip, setTip] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [start, setStart] = useState<Start>('ground');
-  const [zones, setZones] = useState<Zone[]>([]);
   // For a plant outside the catalog, created from a kind.
   const [tender, setTender] = useState(false);
   const t = useTheme();
   const today = getToday();
 
-  // Reload on focus, to pick up a zone just created from here, and select it.
-  const knownZones = useRef<Set<number> | null>(null);
-  useFocusEffect(
-    useCallback(() => {
-      listZones(db).then((list) => {
-        const added = knownZones.current && list.find((z) => !knownZones.current!.has(z.id));
-        knownZones.current = new Set(list.map((z) => z.id));
-        setZones(list);
-        if (added) setForm((f) => ({ ...f, zoneId: added.id }));
-      });
-    }, [db]),
-  );
+  // A zone just created from here gets selected.
+  const zones = useZones((zoneId) => setForm((f) => ({ ...f, zoneId })));
 
   useEffect(() => {
     if (editingId === null) return;
@@ -272,6 +262,14 @@ export default function EditPlantScreen() {
             </Field>
           ) : null}
 
+          {/* Right after what it is, so a plant outside the catalog gets its name without scrolling. */}
+          <Field label={tr('Nome', 'Name')}>
+            <Input value={form.name} onChangeText={(v) => set('name', v)} placeholder={tr('Es. Pomodoro', 'E.g. Tomato')} />
+          </Field>
+          <Field label={tr('Varietà (facoltativo)', 'Variety (optional)')}>
+            <Input value={form.variety ?? ''} onChangeText={(v) => set('variety', v)} placeholder={tr('Es. Cuore di bue', 'E.g. Beefsteak')} />
+          </Field>
+
           {editingId === null && (
             <Field label={tr('Com’è adesso', 'Where it is now')}>
               <ChipRow>
@@ -357,28 +355,8 @@ export default function EditPlantScreen() {
             </Field>
           ) : null}
 
-          <Field label={tr('Nome', 'Name')}>
-            <Input value={form.name} onChangeText={(v) => set('name', v)} placeholder={tr('Es. Pomodoro', 'E.g. Tomato')} />
-          </Field>
-          <Field label={tr('Varietà (facoltativo)', 'Variety (optional)')}>
-            <Input value={form.variety ?? ''} onChangeText={(v) => set('variety', v)} placeholder={tr('Es. Cuore di bue', 'E.g. Beefsteak')} />
-          </Field>
           <Field label={zoneLocked ? tr('Riparo', 'Shelter') : tr('Zona', 'Zone')}>
-            {zoneLocked ? null : (
-              <ChipRow>
-                <Chip label={tr('Nessuna', 'None')} selected={form.zoneId === null} onPress={() => set('zoneId', null)} />
-                {zones.map((z) => (
-                  <Chip
-                    key={z.id}
-                    icon={SUN_SYMBOL[z.sun]}
-                    label={z.name}
-                    selected={form.zoneId === z.id}
-                    onPress={() => set('zoneId', z.id)}
-                  />
-                ))}
-                <Chip icon="add" label={tr('Nuova zona', 'New zone')} onPress={() => router.push('/zone/edit')} />
-              </ChipRow>
-            )}
+            {zoneLocked ? null : <ZoneChips zones={zones} value={form.zoneId} onChange={(id) => set('zoneId', id)} />}
             {mismatch ? <Body style={{ marginTop: 8, color: t.warn }}>{mismatch}</Body> : null}
             <View style={{ marginTop: zoneLocked ? 0 : 12 }}>
               <ToggleRow

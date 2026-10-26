@@ -3,14 +3,15 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { Body, Button, Chip, ChipRow, Field, PastDayPicker, Screen, ToggleRow } from '@/components/ui';
-import { getPlant, listZones, movePlant } from '@/lib/db';
+import { getPlant, movePlant } from '@/lib/db';
 import { syncReminders } from '@/lib/notifications';
 import { REPOT_NO_FEED_DAYS, REPOT_STEPS, expandPlan } from '@/lib/plans';
 import { PLANT_SIZE_LABEL, POT_SIZE_LABEL, everyDays, repeatLabel } from '@/lib/presets';
 import { daysBetween, fromDay, today as getToday } from '@/lib/schedule';
-import type { Plant, Size, Zone } from '@/lib/types';
+import type { Plant, Size } from '@/lib/types';
 import { plantWatering } from '@/lib/watering';
-import { SUN_SYMBOL, TASK_SYMBOL } from '@/components/Icon';
+import { TASK_SYMBOL } from '@/components/Icon';
+import { ZoneChips, useZones } from '@/components/ZoneChips';
 import { cat, locale, tr } from '@/lib/i18n';
 
 const SIZES: Size[] = ['small', 'medium', 'large'];
@@ -21,19 +22,19 @@ export default function MoveScreen() {
   const plantId = Number(id);
   const today = getToday();
   const [plant, setPlant] = useState<Plant | null>(null);
-  const [zones, setZones] = useState<Zone[]>([]);
   const [day, setDay] = useState(today);
   const [potted, setPotted] = useState(true);
   const [size, setSize] = useState<Size>('medium');
   const [potSize, setPotSize] = useState<Size>('medium');
   const [zoneId, setZoneId] = useState<number | null>(null);
+  // A zone just created from here gets selected.
+  const zones = useZones(setZoneId);
   const [covered, setCovered] = useState(false);
   const [holdFeeding, setHoldFeeding] = useState(true);
   // After-care steps (by index) the user switched off.
   const [skipped, setSkipped] = useState<Set<number>>(new Set());
 
   useEffect(() => {
-    listZones(db).then(setZones);
     getPlant(db, plantId).then((p) => {
       setPlant(p);
       if (!p) return;
@@ -104,12 +105,7 @@ export default function MoveScreen() {
         ) : null}
 
         <Field label={tr('Zona', 'Zone')}>
-          <ChipRow>
-            <Chip label={tr('Nessuna', 'None')} selected={zoneId === null} onPress={() => setZoneId(null)} />
-            {zones.map((z) => (
-              <Chip key={z.id} icon={SUN_SYMBOL[z.sun]} label={z.name} selected={zoneId === z.id} onPress={() => setZoneId(z.id)} />
-            ))}
-          </ChipRow>
+          <ZoneChips zones={zones} value={zoneId} onChange={setZoneId} />
           <View style={{ marginTop: 12 }}>
             <ToggleRow
               label={tr('Al coperto', 'Under cover')}
