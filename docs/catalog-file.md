@@ -33,9 +33,17 @@ A step: `type` (`water`, `check`, `prune`, `fertilize`, `treat`, `harvest`, `oth
 `until` (last day for repeats), `months` (1-12, the months it may fall in).
 
 A seasonal step: `type`, `title`, `months` (required), optional `every` (repeat every
-N days within the months; without it, once a year) and `only`, e.g.
-`{ "potted": true }` for pots only, `{ "potted": false }` for the ground only,
-`{ "tender": true }`.
+N days within the months; without it, once a year) and `only`, which limits the step
+to the plants that match:
+
+| `only` | Applies to |
+|---|---|
+| `{ "potted": true }` / `{ "potted": false }` | Plants in a pot / in the ground. |
+| `{ "tender": true }` | Plants that fear frost (`tender` above). |
+| `{ "young": true }` / `{ "young": false }` | Plants added as "Piccola o giovane", or from seed; / all the others. E.g. formative pruning for young ones, regular pruning for the rest. |
+
+Keys can be combined: `{ "potted": true, "young": true }` needs both. `only` is read
+when the plant is added: changing its size later doesn't change its care.
 
 A seasonal step that moves the plant says so with `moves`, and marking it done asks
 where the plant is now:

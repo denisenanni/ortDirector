@@ -167,7 +167,10 @@ export default function EditPlantScreen() {
       if (planned) Object.assign(clean, { stage: 'seedbed', plantedOn: null });
       // A plant added from a file says itself whether it fears frost.
       const fearsFrost = kind ? tender : customFor(clean.preset)?.tender ?? false;
-      const newId = await createPlant(db, clean, { tender: fearsFrost, young: !!kind && clean.size === 'small' });
+      // Small, or a seedling (no size yet): pruned to shape it. Applies to
+      // kinds and to plants added from a file alike.
+      const young = clean.size === 'small' || clean.size === null;
+      const newId = await createPlant(db, clean, { tender: fearsFrost, young });
       if (planned) await transplant(db, newId, form.plantedOn ?? today, planned, clean);
       router.replace(`/plant/${newId}`);
     } else {

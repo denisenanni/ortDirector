@@ -281,8 +281,7 @@ export async function getPlant(db: SQLiteDatabase, id: number): Promise<Plant | 
 /**
  * Creates the plant, its watering task due today if it has an interval, its
  * seasonal care, and for a sown plant in the catalog the "ready to
- * transplant" reminder. `care` says whether it fears frost and is young,
- * for plants created from a kind.
+ * transplant" reminder. `care` says whether it fears frost and is young.
  */
 export async function createPlant(
   db: SQLiteDatabase,
