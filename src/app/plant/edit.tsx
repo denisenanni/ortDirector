@@ -33,6 +33,12 @@ const SIZES: Size[] = ['small', 'medium', 'large'];
 /** The catalog's watering for the plant, scaled to its size and pot; unchanged without a catalog entry. */
 const withWatering = (f: PlantInput): PlantInput => ({ ...f, ...plantWatering(f) });
 
+/** Whether the watering is still the one worked out from the catalog, not one the user set. */
+const computedWatering = (f: PlantInput) => {
+  const w = plantWatering(f);
+  return !w || (w.waterEveryDays === f.waterEveryDays && w.waterColdDays === f.waterColdDays);
+};
+
 const EMPTY: PlantInput = {
   name: '',
   variety: null,
@@ -94,8 +100,9 @@ export default function EditPlantScreen() {
 
   const set = <K extends keyof PlantInput>(key: K, value: PlantInput[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
-  /** Changes what decides the watering (start, size, pot), and recomputes it. */
-  const setWatering = (patch: Partial<PlantInput>) => setForm((f) => withWatering({ ...f, ...patch }));
+  /** Changes what decides the watering (start, size, pot), and recomputes it unless the user set their own. */
+  const setWatering = (patch: Partial<PlantInput>) =>
+    setForm((f) => (computedWatering(f) ? withWatering({ ...f, ...patch }) : { ...f, ...patch }));
 
   const applyPreset = (name: string) => {
     if (form.preset === name) {
@@ -139,6 +146,8 @@ export default function EditPlantScreen() {
   const chosen = form.preset ? catalog().find((p) => p.name === form.preset) : undefined;
   const inCatalog = catalog().some((p) => p.name === presetFor(form)?.name);
   const zone = zones.find((z) => z.id === form.zoneId);
+  // Taking a plant out of the ground to put it elsewhere is a move, not a correction.
+  const zoneLocked = editingId !== null && form.stage === 'ground' && !form.potted;
   const mismatch = zone ? sunMismatch(form.sun, zone.sun) : null;
 
   const save = async () => {
@@ -296,13 +305,18 @@ export default function EditPlantScreen() {
               <Body>
                 {form.potted
                   ? `${tr('In vaso', 'In a pot')}${form.potSize ? ` (${POT_LABEL[form.potSize].toLowerCase()})` : ''}`
-                  : tr('In terra', 'In the ground')}
+                  : `${tr('In terra', 'In the ground')}${zone ? `, ${zone.name}` : ''}`}
               </Body>
               <Body muted style={{ marginTop: 4, marginBottom: 8 }}>
-                {tr(
-                  'Per metterla in vaso, in terra o in un vaso nuovo usa “Rinvasa o sposta”: aggiunge le cure dopo e lo segna nello storico.',
-                  'To put it in a pot, in the ground or in a new pot use “Repot or move”: it adds the care after it and logs it.',
-                )}
+                {form.potted
+                  ? tr(
+                      'Per metterla in terra o in un vaso nuovo usa “Rinvasa o sposta”: aggiunge le cure dopo e lo segna nello storico.',
+                      'To put it in the ground or in a new pot use “Repot or move”: it adds the care after it and logs it.',
+                    )
+                  : tr(
+                      'Per metterla in vaso o in un’altra zona usa “Rinvasa o sposta”: aggiunge le cure dopo e lo segna nello storico.',
+                      'To put it in a pot or in another zone use “Repot or move”: it adds the care after it and logs it.',
+                    )}
               </Body>
               <Button
                 kind="secondary"
@@ -349,22 +363,24 @@ export default function EditPlantScreen() {
           <Field label={tr('Varietà (facoltativo)', 'Variety (optional)')}>
             <Input value={form.variety ?? ''} onChangeText={(v) => set('variety', v)} placeholder={tr('Es. Cuore di bue', 'E.g. Beefsteak')} />
           </Field>
-          <Field label={tr('Zona', 'Zone')}>
-            <ChipRow>
-              <Chip label={tr('Nessuna', 'None')} selected={form.zoneId === null} onPress={() => set('zoneId', null)} />
-              {zones.map((z) => (
-                <Chip
-                  key={z.id}
-                  icon={SUN_SYMBOL[z.sun]}
-                  label={z.name}
-                  selected={form.zoneId === z.id}
-                  onPress={() => set('zoneId', z.id)}
-                />
-              ))}
-              <Chip icon="add" label={tr('Nuova zona', 'New zone')} onPress={() => router.push('/zone/edit')} />
-            </ChipRow>
+          <Field label={zoneLocked ? tr('Riparo', 'Shelter') : tr('Zona', 'Zone')}>
+            {zoneLocked ? null : (
+              <ChipRow>
+                <Chip label={tr('Nessuna', 'None')} selected={form.zoneId === null} onPress={() => set('zoneId', null)} />
+                {zones.map((z) => (
+                  <Chip
+                    key={z.id}
+                    icon={SUN_SYMBOL[z.sun]}
+                    label={z.name}
+                    selected={form.zoneId === z.id}
+                    onPress={() => set('zoneId', z.id)}
+                  />
+                ))}
+                <Chip icon="add" label={tr('Nuova zona', 'New zone')} onPress={() => router.push('/zone/edit')} />
+              </ChipRow>
+            )}
             {mismatch ? <Body style={{ marginTop: 8, color: t.warn }}>{mismatch}</Body> : null}
-            <View style={{ marginTop: 12 }}>
+            <View style={{ marginTop: zoneLocked ? 0 : 12 }}>
               <ToggleRow
                 label={tr('Al coperto', 'Under cover')}
                 detail={

@@ -194,7 +194,7 @@ test('transplanting closes the reminder, logs it, adds the plan and holds back r
   const id = await db.createPlant(d, p);
   const steps = planFor('Pomodoro')!.steps;
   const planned = expandPlan(steps, T, T);
-  const place = { potted: false, size: 'large' as const, potSize: null };
+  const place = { potted: false, size: 'large' as const, potSize: null, zoneId: null, covered: false };
   const watering = plantWatering({ ...p, stage: 'ground', ...place });
   await db.transplant(d, id, T, planned, { ...place, watering });
 
@@ -209,6 +209,23 @@ test('transplanting closes the reminder, logs it, adds the plan and holds back r
   assert.deepEqual([establishing.dueOn, establishing.repeatDays, establishing.endsOn], [T, 1, addDays(T, 13)]);
   const log = await db.listPlantLog(d, id);
   assert.deepEqual(log.map((e) => [e.type, e.doneOn]), [['transplant', T]]);
+});
+
+test('a seedling from a covered seedbed goes out to its zone, in the rain, and into a pot gets the pot’s frost care', async () => {
+  const d = await fresh();
+  const seedbed = await db.saveZone(d, { name: 'Davanzale', sun: 'partial', covered: true });
+  const terrace = await db.saveZone(d, { name: 'Terrazzo', sun: 'full', covered: false });
+  const id = await db.createPlant(d, plant({ name: 'Avocado', preset: 'Avocado', stage: 'seedbed', zoneId: seedbed, covered: true }));
+  const titles = async () => (await tasksOf(d, id)).map((t) => t.title);
+  assert.ok((await titles()).includes('Pacciamare e coprire con tessuto non tessuto'));
+
+  await db.transplant(d, id, T, [], { potted: true, size: 'small', potSize: 'medium', zoneId: terrace, covered: false, watering: null });
+
+  const after = (await db.getPlant(d, id)) as Plant;
+  assert.deepEqual([after.stage, after.potted, after.zoneId, after.covered], ['ground', true, terrace, false]);
+  const now = await titles();
+  assert.ok(!now.includes('Pacciamare e coprire con tessuto non tessuto'));
+  assert.ok(now.includes('Mettere al riparo dal gelo'));
 });
 
 test('archiving keeps the history and drops open tasks; restoring brings the care back', async () => {

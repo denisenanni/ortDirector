@@ -358,13 +358,27 @@ export interface Placement {
   potted: boolean;
   size: Size | null;
   potSize: Size | null;
+  zoneId: number | null;
+  covered: boolean;
   watering?: { waterEveryDays: number; waterColdDays: number } | null;
+}
+
+/** Frost care for a pot (bring it in) isn't the one for the ground (cover it): swaps it when the plant changes place. */
+async function swapPlacementCare(db: SQLiteDatabase, plant: Plant, day: DayString, potted: boolean) {
+  const plan = planFor(presetFor(plant)?.name);
+  const tender = kindFor(plant.preset)?.tender ?? customFor(plant.preset)?.tender ?? false;
+  const swap = placementCare(plan, day, { tender, young: false }, plant.potted, potted);
+  for (const t of swap.drop) {
+    await db.runAsync('DELETE FROM tasks WHERE plant_id = ? AND title = ? AND months IS NOT NULL AND done_on IS NULL', plant.id, t);
+  }
+  for (const t of swap.add) await insertTask(db, plant.id, t);
 }
 
 /**
  * Puts the plant in its final spot on `day`: closes its "ready to transplant"
  * reminder, logs the transplant and creates the chosen plan tasks. Regular
- * watering waits until the plan's establishment watering is over.
+ * watering waits until the plan's establishment watering is over; frost care
+ * follows whether it went into a pot or the ground.
  */
 export async function transplant(
   db: SQLiteDatabase,
@@ -381,9 +395,10 @@ export async function transplant(
   const waterFrom = plan && establishing ? regularWateringFrom(plan.steps, day) : null;
   await db.withTransactionAsync(async () => {
     await db.runAsync(
-      `UPDATE plants SET stage = 'ground', planted_on = ?, potted = ?, size = ?, pot_size = ? WHERE id = ?`,
-      day, potted ? 1 : 0, place.size, potted ? place.potSize : null, plantId,
+      `UPDATE plants SET stage = 'ground', planted_on = ?, potted = ?, size = ?, pot_size = ?, zone_id = ?, covered = ? WHERE id = ?`,
+      day, potted ? 1 : 0, place.size, potted ? place.potSize : null, place.zoneId, place.covered ? 1 : 0, plantId,
     );
+    await swapPlacementCare(db, plant, day, potted);
     if (place.watering && plant.waterEveryDays) {
       const { waterEveryDays, waterColdDays } = place.watering;
       await db.runAsync('UPDATE plants SET water_every_days = ?, water_cold_days = ? WHERE id = ?', waterEveryDays, waterColdDays, plantId);
@@ -416,8 +431,6 @@ export async function transplant(
 
 /** Where a plant already in place goes when it's moved: a pot, the ground, another zone, indoors. */
 export interface Move extends Placement {
-  zoneId: number | null;
-  covered: boolean;
   /** Push feeding due in the next weeks past them, for the roots to heal. */
   holdFeeding: boolean;
 }
@@ -437,7 +450,6 @@ export async function movePlant(db: SQLiteDatabase, plantId: number, day: DayStr
     : !potted && plant.potted ? tr('Messa in terra', 'Moved into the ground')
     : potted ? tr('Rinvaso', 'Repotted')
     : tr('Spostata', 'Moved');
-  const plan = planFor(presetFor(plant)?.name);
   await db.withTransactionAsync(async () => {
     await db.runAsync(
       `UPDATE plants SET planted_on = ?, potted = ?, size = ?, pot_size = ?, zone_id = ?, covered = ? WHERE id = ?`,
@@ -452,13 +464,7 @@ export async function movePlant(db: SQLiteDatabase, plantId: number, day: DayStr
         waterEveryDays, waterColdDays, plantId,
       );
     }
-    // Frost care for a pot (bring it in) isn't the one for the ground (cover it).
-    const tender = kindFor(plant.preset)?.tender ?? customFor(plant.preset)?.tender ?? false;
-    const swap = placementCare(plan, day, { tender, young: false }, plant.potted, potted);
-    for (const t of swap.drop) {
-      await db.runAsync('DELETE FROM tasks WHERE plant_id = ? AND title = ? AND months IS NOT NULL AND done_on IS NULL', plantId, t);
-    }
-    for (const t of swap.add) await insertTask(db, plantId, t);
+    await swapPlacementCare(db, plant, day, potted);
     await db.runAsync(`INSERT INTO task_log (plant_id, type, title, done_on) VALUES (?, 'transplant', ?, ?)`, plantId, title, day);
     if (move.holdFeeding) {
       const until = addDays(day, REPOT_NO_FEED_DAYS);

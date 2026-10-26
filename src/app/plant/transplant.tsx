@@ -1,16 +1,16 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
-import { ScrollView } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { Body, Button, Chip, ChipRow, Field, PastDayPicker, Screen, ToggleRow } from '@/components/ui';
-import { getPlant, transplant } from '@/lib/db';
+import { getPlant, listZones, transplant } from '@/lib/db';
 import { syncReminders } from '@/lib/notifications';
 import { expandPlan, planFor } from '@/lib/plans';
 import { PLANT_SIZE_LABEL, POT_SIZE_LABEL, everyDays, presetFor, repeatLabel } from '@/lib/presets';
 import { daysBetween, fromDay, today as getToday } from '@/lib/schedule';
-import type { Plant, Size } from '@/lib/types';
+import type { Plant, Size, Zone } from '@/lib/types';
 import { plantWatering } from '@/lib/watering';
-import { TASK_SYMBOL } from '@/components/Icon';
+import { SUN_SYMBOL, TASK_SYMBOL } from '@/components/Icon';
 import { cat, locale, tr } from '@/lib/i18n';
 
 const SIZES: Size[] = ['small', 'medium', 'large'];
@@ -26,18 +26,26 @@ export default function TransplantScreen() {
   // A seedling going out is small; the pot is the user's guess to make.
   const [size, setSize] = useState<Size>('small');
   const [potSize, setPotSize] = useState<Size>('medium');
+  const [zones, setZones] = useState<Zone[]>([]);
+  const [zoneId, setZoneId] = useState<number | null>(null);
+  // A seedbed indoors is under cover; where it goes out is usually not.
+  const [covered, setCovered] = useState(false);
   // Plan steps (by index) the user switched off for this plant.
   const [skipped, setSkipped] = useState<Set<number>>(new Set());
 
   useEffect(() => {
+    listZones(db).then(setZones);
     getPlant(db, plantId).then((p) => {
       setPlant(p);
-      if (p) setPotted(p.potted);
+      if (!p) return;
+      setPotted(p.potted);
+      setZoneId(p.zoneId);
     });
   }, [db, plantId]);
 
   if (!plant) return <Screen>{null}</Screen>;
 
+  const zone = zones.find((z) => z.id === zoneId);
   const plan = planFor(presetFor(plant)?.name);
   const steps = plan?.steps ?? [];
   const planned = steps.map((s) => expandPlan([s], day, today)[0]);
@@ -54,7 +62,7 @@ export default function TransplantScreen() {
 
   const save = async () => {
     const tasks = planned.filter((t, i) => t && !skipped.has(i));
-    await transplant(db, plant.id, day, tasks, { potted, size, potSize, watering });
+    await transplant(db, plant.id, day, tasks, { potted, size, potSize, zoneId, covered, watering });
     syncReminders(db);
     router.back();
   };
@@ -94,6 +102,29 @@ export default function TransplantScreen() {
             </ChipRow>
           </Field>
         ) : null}
+
+        <Field label={tr('Zona', 'Zone')}>
+          <ChipRow>
+            <Chip label={tr('Nessuna', 'None')} selected={zoneId === null} onPress={() => setZoneId(null)} />
+            {zones.map((z) => (
+              <Chip key={z.id} icon={SUN_SYMBOL[z.sun]} label={z.name} selected={zoneId === z.id} onPress={() => setZoneId(z.id)} />
+            ))}
+          </ChipRow>
+          <View style={{ marginTop: 12 }}>
+            <ToggleRow
+              label={tr('Al coperto', 'Under cover')}
+              detail={
+                zone?.covered
+                  ? tr('La zona è già al coperto.', 'The zone is under cover already.')
+                  : tr('In casa, sotto una tettoia, in serra: la pioggia non la bagna.', 'Indoors, under a roof, in a greenhouse: rain doesn’t reach it.')
+              }
+              on={covered || !!zone?.covered}
+              disabled={!!zone?.covered}
+              onPress={() => setCovered(!covered)}
+            />
+          </View>
+        </Field>
+
         {watering && plant.waterEveryDays ? (
           <Body muted style={{ marginBottom: 18 }}>
             {tr(
