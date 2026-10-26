@@ -131,10 +131,11 @@ Impostazioni › Catalogo apre un file JSON (formato in [catalog-file.md](catalo
 
 ## Backup
 
-- **Esporta**: tutte le tabelle diventano un file JSON con la versione del database. Passa dal foglio di condivisione di iOS (File, iCloud, AirDrop).
+- **Esporta**: tutte le tabelle diventano un file JSON con la versione del database, più le foto delle piante in base64 sotto `photos` (nome file → contenuto). Passa dal foglio di condivisione di iOS (File, iCloud, AirDrop).
 - **Importa**: prima controlla che sia un backup di ortDirector e non di una versione più nuova dell'app. Poi, in una transazione unica, svuota tutto e reinserisce le righe del file, scartando colonne che non esistono. Se qualcosa va storto a metà, non cambia niente.
 - I backup vecchi sono accettati: le colonne arrivate dopo prendono il valore di default.
-- **Le foto non sono nel backup.** C'è solo il nome del file: su un telefono nuovo le piante avranno il riferimento ma non l'immagine.
+- **Foto**: dopo l'importazione `restorePhotos` (in `photos.ts`) riscrive i file in `documents/photos` e cancella quelli che nessuna pianta usa più. Un backup vecchio senza `photos` tiene le foto già sul telefono con lo stesso nome. I nomi che escono dalla cartella (`../`) rendono il file non valido.
+- Le foto vengono ridotte quando le scatti o le scegli: JPEG, lato lungo massimo 1280 px, circa 200 KB. Quelle salvate prima, se sopra i 500 KB, entrano nel backup ridotte (il file sul telefono resta com'è). Così il backup pesa circa 250 KB a pianta con foto.
 
 ## Notifiche
 

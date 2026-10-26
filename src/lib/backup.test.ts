@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { insertFor, makeBackup, parseBackup } from './backup.ts';
+import { insertFor, makeBackup, parseBackup, photoNames } from './backup.ts';
 
 const empty = { catalog: [], zones: [], plants: [], tasks: [], task_log: [], settings: [] };
 
@@ -31,4 +31,30 @@ test('insertFor keeps only real columns', () => {
     values: [1, 'Basilico'],
   });
   assert.equal(insertFor('plants', { bogus: 1 }, ['id']), null);
+});
+
+test('photos survive the round trip, and backups from before photos get none', () => {
+  const b = { ...makeBackup(8, empty), photos: { 'plant-1-1700000000000.jpg': '/9j/4AAQ' } };
+  assert.deepEqual(parseBackup(JSON.stringify(b), 8).photos, b.photos);
+  const { photos: _photos, ...old } = makeBackup(7, empty);
+  assert.deepEqual(parseBackup(JSON.stringify(old), 8).photos, {});
+});
+
+test('parseBackup rejects photo names that leave the photos folder', () => {
+  for (const name of ['../ortdirector.db', '.hidden', 'a/b.jpg', '']) {
+    const b = { ...makeBackup(8, empty), photos: { [name]: 'x' } };
+    assert.throws(() => parseBackup(JSON.stringify(b), 8), /foto/, name);
+  }
+  assert.throws(() => parseBackup(JSON.stringify({ ...makeBackup(8, empty), photos: ['x'] }), 8), /foto/);
+  assert.throws(() => parseBackup(JSON.stringify({ ...makeBackup(8, empty), photos: { 'a.jpg': 1 } }), 8), /foto/);
+});
+
+test('photoNames lists the photo files plants use, not web data URLs or odd names', () => {
+  const plants = [
+    { id: 1, photo: 'plant-1-1700000000000.jpg' },
+    { id: 2, photo: null },
+    { id: 3, photo: 'data:image/jpeg;base64,/9j/' },
+    { id: 4, photo: '../../escape.jpg' },
+  ];
+  assert.deepEqual(photoNames({ plants }), ['plant-1-1700000000000.jpg']);
 });
