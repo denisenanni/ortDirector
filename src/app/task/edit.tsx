@@ -63,6 +63,12 @@ export default function EditTaskScreen() {
     setForm((f) => ({ ...f, type, title: customTitle ? f.title : TASK_LABEL[type] }));
 
   const offset = daysBetween(today, form.dueOn);
+  // The plant's regular watering follows the plant's form, which overwrites it on save: change it there.
+  const plantWatering = !!existing && existing.type === 'water' && !!existing.repeatDays && !existing.endsOn && existing.plantId !== null;
+  // A "ready to transplant" reminder is closed by the transplant, and stays one.
+  const fixed = plantWatering || existing?.type === 'transplant';
+  // Archived plants take no new tasks, but a task of one keeps showing its plant.
+  const choosable = plants.filter((p) => !p.archivedOn || p.id === form.plantId);
 
   const finish = () => {
     syncReminders(db);
@@ -114,13 +120,15 @@ export default function EditTaskScreen() {
             </>
           )}
 
-          <Field label={tr('Tipo', 'Type')}>
-            <ChipRow>
-              {TASK_TYPES.map((t) => (
-                <Chip key={t} icon={TASK_SYMBOL[t]} label={TASK_LABEL[t]} selected={form.type === t} onPress={() => setType(t)} />
-              ))}
-            </ChipRow>
-          </Field>
+          {fixed ? null : (
+            <Field label={tr('Tipo', 'Type')}>
+              <ChipRow>
+                {TASK_TYPES.map((t) => (
+                  <Chip key={t} icon={TASK_SYMBOL[t]} label={TASK_LABEL[t]} selected={form.type === t} onPress={() => setType(t)} />
+                ))}
+              </ChipRow>
+            </Field>
+          )}
 
           <Field label={tr('Titolo', 'Title')}>
             <Input
@@ -132,14 +140,36 @@ export default function EditTaskScreen() {
             />
           </Field>
 
-          <Field label={tr('Pianta', 'Plant')}>
-            <ChipRow>
-              <Chip label={tr('Nessuna', 'None')} selected={form.plantId === null} onPress={() => set('plantId', null)} />
-              {plants.map((p) => (
-                <Chip key={p.id} label={p.name} selected={form.plantId === p.id} onPress={() => set('plantId', p.id)} />
-              ))}
-            </ChipRow>
-          </Field>
+          {plantWatering ? (
+            <Field label={tr('Ogni quanto', 'How often')}>
+              <Body>
+                {tr(
+                  `Da maggio a settembre ${everyDays(form.repeatDays!)}, il resto dell’anno ${everyDays(form.coldRepeatDays || form.repeatDays!)}.`,
+                  `May to September ${everyDays(form.repeatDays!)}, the rest of the year ${everyDays(form.coldRepeatDays || form.repeatDays!)}.`,
+                )}
+              </Body>
+              <Body muted style={{ marginTop: 4, marginBottom: 8 }}>
+                {tr(
+                  'È l’annaffiatura della pianta: si cambia dalla sua scheda.',
+                  'It’s the plant’s watering: change it from the plant’s page.',
+                )}
+              </Body>
+              <Button
+                kind="secondary"
+                label={tr('Cambia dalla pianta', 'Change it from the plant')}
+                onPress={() => router.replace({ pathname: '/plant/edit', params: { id: String(existing!.plantId) } })}
+              />
+            </Field>
+          ) : fixed ? null : (
+            <Field label={tr('Pianta', 'Plant')}>
+              <ChipRow>
+                <Chip label={tr('Nessuna', 'None')} selected={form.plantId === null} onPress={() => set('plantId', null)} />
+                {choosable.map((p) => (
+                  <Chip key={p.id} label={p.name} selected={form.plantId === p.id} onPress={() => set('plantId', p.id)} />
+                ))}
+              </ChipRow>
+            </Field>
+          )}
 
           <Field label={tr('Quando', 'When')}>
             <ChipRow>
@@ -161,44 +191,46 @@ export default function EditTaskScreen() {
             />
           </Field>
 
-          <Field label={tr('Ripeti', 'Repeat')}>
-            <ChipRow>
-              <Chip
-                label={tr('Una volta', 'Once')}
-                selected={!form.yearly && !form.repeatDays}
-                onPress={() => setForm((f) => ({ ...f, yearly: false, repeatDays: null }))}
-              />
-              <Chip
-                label={tr('Ogni tot giorni', 'Every few days')}
-                selected={!form.yearly && !!form.repeatDays}
-                onPress={() => setForm((f) => ({ ...f, yearly: false, repeatDays: f.repeatDays ?? 7 }))}
-              />
-              <Chip
-                label={tr('Ogni anno', 'Every year')}
-                selected={form.yearly}
-                onPress={() => setForm((f) => ({ ...f, yearly: true, repeatDays: null }))}
-              />
-            </ChipRow>
-            {!form.yearly && form.repeatDays ? (
-              <View style={{ marginTop: 8 }}>
-                <Stepper
-                  value={form.repeatDays}
-                  onChange={(v) => set('repeatDays', v ?? 1)}
-                  format={(v) => capitalize(everyDays(v))}
+          {fixed ? null : (
+            <Field label={tr('Ripeti', 'Repeat')}>
+              <ChipRow>
+                <Chip
+                  label={tr('Una volta', 'Once')}
+                  selected={!form.yearly && !form.repeatDays}
+                  onPress={() => setForm((f) => ({ ...f, yearly: false, repeatDays: null }))}
                 />
-              </View>
-            ) : null}
-            {(form.repeatDays || form.yearly) && form.endsOn ? (
-              <>
-                <Body muted style={{ marginTop: 8 }}>
-                  {tr('Fino al', 'Until')} {fromDay(form.endsOn).toLocaleDateString(locale(), { day: 'numeric', month: 'long' })}
-                </Body>
-                <Button kind="secondary" label={tr('Ripeti senza scadenza', 'Repeat with no end date')} onPress={() => set('endsOn', null)} />
-              </>
-            ) : null}
-          </Field>
+                <Chip
+                  label={tr('Ogni tot giorni', 'Every few days')}
+                  selected={!form.yearly && !!form.repeatDays}
+                  onPress={() => setForm((f) => ({ ...f, yearly: false, repeatDays: f.repeatDays ?? 7 }))}
+                />
+                <Chip
+                  label={tr('Ogni anno', 'Every year')}
+                  selected={form.yearly}
+                  onPress={() => setForm((f) => ({ ...f, yearly: true, repeatDays: null }))}
+                />
+              </ChipRow>
+              {!form.yearly && form.repeatDays ? (
+                <View style={{ marginTop: 8 }}>
+                  <Stepper
+                    value={form.repeatDays}
+                    onChange={(v) => set('repeatDays', v ?? 1)}
+                    format={(v) => capitalize(everyDays(v))}
+                  />
+                </View>
+              ) : null}
+              {(form.repeatDays || form.yearly) && form.endsOn ? (
+                <>
+                  <Body muted style={{ marginTop: 8 }}>
+                    {tr('Fino al', 'Until')} {fromDay(form.endsOn).toLocaleDateString(locale(), { day: 'numeric', month: 'long' })}
+                  </Body>
+                  <Button kind="secondary" label={tr('Ripeti senza scadenza', 'Repeat with no end date')} onPress={() => set('endsOn', null)} />
+                </>
+              ) : null}
+            </Field>
+          )}
 
-          {form.repeatDays || form.yearly ? (
+          {!fixed && (form.repeatDays || form.yearly) ? (
             <Field label={tr('Solo in questi mesi', 'Only in these months')}>
               <ChipRow>
                 {monthShort().map((name, i) => {

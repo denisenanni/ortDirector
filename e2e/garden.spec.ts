@@ -174,3 +174,14 @@ test('a backup brings the garden to another phone', async ({ page, browser }) =>
   await expect(row(other, 'Pronta da trapiantare', 'Pomodoro')).toBeVisible();
   await other.close();
 });
+
+test('the plant’s watering is changed from the plant, not from the task', async ({ page }) => {
+  const id = await addPlant(page, 'Basilico');
+  await page.goto('/');
+  await row(page, 'Annaffiare', 'Basilico').getByText('Annaffiare').click();
+  await expect(page.getByText('Ripeti', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Tipo', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Cambia dalla pianta' }).click();
+  await page.waitForURL(new RegExp(`/plant/edit\\?id=${id}$`));
+  await expect(page.getByText('Irrigazione da maggio a settembre')).toBeVisible();
+});
