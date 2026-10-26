@@ -1,6 +1,6 @@
 # Requisiti ortDirector v2
 
-Stato: **bozza**, 2026-10-26. Le domande aperte in fondo vanno chiuse prima di scrivere codice.
+Stato: **bozza**, 2026-10-26. Domande 1-6 e 8 decise con denise il 2026-10-26; restano aperte la 7 e Android.
 
 Parte da [requirements.md](requirements.md) (v1, fatta) e dall'app com'è oggi: zone con nome, esposizione e "al coperto"; piante in una zona, in vaso o in terra; avviso quando il sole che serve alla pianta non è quello della zona.
 
@@ -19,9 +19,9 @@ La fase 2 ha bisogno di misure vere e del nord. Per questo la mappa le chiede da
 
 ### Cosa c'è sulla mappa
 
-- **Il giardino**: un rettangolo con le sue misure in metri (es. 12 × 8). È il foglio su cui si disegna.
+- **Il foglio**: una griglia in metri, una sola per tutto il giardino. Non ha un bordo fisso: si allarga per contenere quello che ci disegni. Le zone possono stare lontane fra loro e non toccarsi (l'aiuola davanti casa e l'orto dietro stanno sulla stessa mappa, con il vuoto in mezzo).
 - **Il nord**: una freccia che si gira. Di default in alto.
-- **Le zone** diventano forme dentro il giardino: rettangoli che si spostano, si ridimensionano e si ruotano, e cerchi per vasi singoli e alberi. Misure in metri, arrotondate a 10 cm.
+- **Le zone** diventano rettangoli che si spostano, si ridimensionano e si ruotano. Solo rettangoli: niente cerchi né forme libere (un'aiuola a L sono due zone). Misure in metri, arrotondate a 10 cm.
 - **Le zone fuori mappa** (casa, serra di un'altra persona, il davanzale) restano zone normali senza forma. La mappa le elenca sotto, non le nasconde.
 
 Ogni zona ha al massimo una forma. Una zona senza forma funziona come oggi: niente di quello che c'è smette di funzionare se la mappa non la disegni mai.
@@ -36,7 +36,7 @@ Ogni zona ha al massimo una forma. Una zona senza forma funziona come oggi: nien
 
 ### Dati
 
-- Nuova versione del database (v9): tabella `garden` (larghezza, lunghezza, direzione del nord) e colonne della forma sulla zona (tipo, x, y, larghezza, lunghezza, rotazione). Le zone esistenti restano senza forma.
+- Nuova versione del database (v9): la direzione del nord in `settings` e le colonne del rettangolo sulla zona (x, y, larghezza, lunghezza, rotazione). Le zone esistenti restano senza forma.
 - La mappa va nel backup e torna con l'import. Un backup senza mappa (fatto prima della v2) si importa come oggi.
 
 ## Fase 2: ore di sole
@@ -44,7 +44,7 @@ Ogni zona ha al massimo una forma. Una zona senza forma funziona come oggi: nien
 ### Cosa serve in più sulla mappa
 
 - **La posizione** del giardino: un tocco su "Usa la mia posizione" (GPS, una volta sola, poi salvata) oppure latitudine e longitudine scritte a mano. Niente rete: il percorso del sole si calcola sul telefono.
-- **Gli ostacoli**: casa, muri, siepi, alberi. Sono forme come le zone (rettangoli e cerchi) con in più un'**altezza** in metri. Non hanno piante e non sono zone.
+- **Gli ostacoli**: casa, muri, siepi, alberi. Sono rettangoli come le zone, con in più un'**altezza** in metri (un albero è il quadrato della sua chioma). Non hanno piante e non sono zone.
 
 ### Cosa calcola
 
@@ -76,17 +76,20 @@ Restano dove erano dopo la v1, salvo decisione diversa:
 - Diario con foto nel tempo.
 - Catalogo modificabile dentro l'app (oggi si aggiunge da file JSON, ed è sufficiente).
 - Build vera (EAS, account Apple Developer) e Android.
-- Posizione delle singole piante dentro un'aiuola (rotazione delle colture). Vedi domanda 4.
+- Posizione delle singole piante dentro un'aiuola (rotazione delle colture).
+- Foto o piantina come sfondo della mappa.
+
+## Decisioni
+
+1. **Una mappa sola**, con zone anche lontane e non collegate fra loro.
+2. **Misure in metri**, anche prese a passi, e il nord.
+3. **Solo rettangoli**, ruotabili. Niente cerchi né poligoni.
+4. **Niente piante singole** sulla mappa: basta la zona.
+5. **Niente sfondo** (foto o piantina).
+6. **L'esposizione della zona** è la media delle ore di sole da aprile a settembre; gli altri mesi si vedono nel dettaglio. Si potrà affinare dopo averla usata.
+8. **Calendario di semina, diario e catalogo modificabile** restano dopo la v2.
 
 ## Domande aperte
 
-Accanto a ognuna la proposta, che vale se non dici altro.
-
-1. **Una mappa o più?** Giardino davanti, terrazzo, balcone possono essere posti separati, ognuno col suo nord. *Proposta: una mappa sola in v2; i posti lontani restano zone fuori mappa.*
-2. **Misure vere o schizzo?** *Proposta: metri, anche presi a passi. Senza misure e nord la fase 2 non si può fare.*
-3. **Che forme?** *Proposta: rettangoli ruotabili e cerchi. Niente poligoni liberi: costano molto e un'aiuola a L sono due rettangoli.*
-4. **Le piante sulla mappa?** Come pallini dentro la loro aiuola, o basta sapere in che zona stanno? *Proposta: basta la zona in v2. Le posizioni singole servono per la rotazione dell'orto, che non è in v2.*
-5. **Sfondo**: una foto dall'alto o una piantina del giardino sotto la mappa, per ricalcarla? *Proposta: no in v2. Si disegna sul foglio bianco a quadretti.*
-6. **Quale periodo decide l'esposizione** della zona? Una zona può essere al sole a giugno e in ombra a dicembre. *Proposta: la media da aprile a settembre, quando l'orto lavora; gli altri mesi si vedono nel dettaglio.*
-7. **Alberi che perdono le foglie** fanno ombra anche d'inverno? *Proposta: un'opzione "perde le foglie" sull'ostacolo albero, che da novembre a marzo non fa ombra.*
-8. **Le voci di "Non in v2"**: ce n'è qualcuna che ti serve prima della mappa? *Proposta: no, restano dopo.*
+7. **Alberi che perdono le foglie** (fico, noce, tiglio): d'inverno sono rami nudi e la luce passa. Contarli come ombra piena tutto l'anno sottostima il sole da novembre a marzo. *Proposta: sull'ostacolo una spunta "perde le foglie", che da novembre a marzo non fa ombra.*
+9. **Android**: il codice è già quasi pronto (icone e date hanno già il ramo Android). Era "dopo" solo perché usi un iPhone. Va fatto solo se c'è un telefono Android su cui usarla davvero.
