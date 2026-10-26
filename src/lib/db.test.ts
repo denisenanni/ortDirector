@@ -388,3 +388,44 @@ test('a pot brought indoors for winter can go back in the ground in spring, and 
   assert.ok(!titles.includes('Mettere al riparo dal gelo'));
   assert.deepEqual((await db.listPlantLog(d, id)).map((e) => e.title), ['Messa in terra', 'Messa in vaso']);
 });
+
+test('bringing a pot in moves it under cover, out of the rain; undo and bringing it out put it back', async () => {
+  const d = await fresh();
+  const terrace = await db.saveZone(d, { name: 'Terrazzo', sun: 'full', covered: false });
+  const home = await db.saveZone(d, { name: 'Casa', sun: 'partial', covered: false });
+  const id = await db.createPlant(d, plant({ name: 'Limone', preset: 'Limone (vaso)', potted: true, zoneId: terrace }));
+  const task = async (moves: string) => (await tasksOf(d, id)).find((t) => t.moves === moves)!;
+  const where = async () => {
+    const p = (await db.getPlant(d, id))!;
+    return [p.zoneId, p.covered];
+  };
+  assert.equal((await task('in')).title, 'Mettere al riparo dal gelo');
+  assert.equal((await task('out')).title, 'Riportare fuori');
+
+  // In, ticked by mistake and undone: back on the terrace.
+  await db.markDone(d, await task('in'), T, { zoneId: home, covered: true });
+  assert.deepEqual(await where(), [home, true]);
+  await db.undoDone(d, (await db.listDoneOn(d, T))[0]);
+  assert.deepEqual(await where(), [terrace, false]);
+
+  // In for real: the rain doesn't water it any more.
+  await db.markDone(d, await task('in'), T, { zoneId: home, covered: true });
+  assert.equal(await db.rained(d, T), 0);
+
+  // Out: the app remembers the terrace.
+  assert.deepEqual(await db.spotBeforeShelter(d, id), { zoneId: terrace, covered: false });
+  await db.markDone(d, await task('out'), T, { zoneId: terrace, covered: false });
+  assert.deepEqual(await where(), [terrace, false]);
+  assert.equal(await db.rained(d, T), 1);
+});
+
+test('a plain tick leaves the plant where it is, and its undo too', async () => {
+  const d = await fresh();
+  const zone = await db.saveZone(d, { name: 'Orto', sun: 'full', covered: false });
+  const id = await db.createPlant(d, plant({ name: 'Rosa', preset: 'Rosa', zoneId: zone }));
+  await db.markDone(d, (await waterOf(d, id))[0], T);
+  await db.updatePlant(d, id, { ...(await db.getPlant(d, id))!, covered: true });
+  await db.undoDone(d, (await db.listDoneOn(d, T))[0]);
+  const p = (await db.getPlant(d, id))!;
+  assert.deepEqual([p.zoneId, p.covered], [zone, true]);
+});

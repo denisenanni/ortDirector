@@ -36,3 +36,16 @@ A seasonal step: `type`, `title`, `months` (required), optional `every` (repeat 
 N days within the months; without it, once a year) and `only`, e.g.
 `{ "potted": true }` for pots only, `{ "potted": false }` for the ground only,
 `{ "tender": true }`.
+
+A seasonal step that moves the plant says so with `moves`, and marking it done asks
+where the plant is now:
+
+| `moves` | | |
+|---|---|---|
+| `"in"` | Goes under cover for the winter (indoors, greenhouse, out of the rain). | Asks the zone, with "Al coperto" on; remembers where it was. |
+| `"out"` | Comes back out. | Asks the zone, with the one it stood in before going in already picked. |
+| `"repot"` | May end in a bigger pot. | Asks whether it was repotted; if so, opens Rinvasa o sposta. |
+
+```json
+{ "type": "other", "title": "Portare in casa", "months": [10], "only": { "potted": true }, "moves": "in" }
+```

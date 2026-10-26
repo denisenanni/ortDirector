@@ -10,6 +10,13 @@ export type TaskType =
   | 'transplant'
   | 'other';
 
+/**
+ * A task that ends with the plant somewhere else: `in` goes under cover for
+ * the winter, `out` comes back from it, `repot` may end in a bigger pot.
+ * Marking it done asks where the plant is now.
+ */
+export type TaskMove = 'in' | 'out' | 'repot';
+
 /** Where a plant is: still in the seedbed or a nursery pot, or in its final spot. */
 export type Stage = 'seedbed' | 'ground';
 
@@ -81,6 +88,8 @@ export interface Task {
   months: number[] | null;
   /** Interval outside the warm months; null means `repeatDays` all year. */
   coldRepeatDays: number | null;
+  /** Ends with the plant moved; null for most tasks. */
+  moves: TaskMove | null;
   doneOn: DayString | null;
   notes: string | null;
 }

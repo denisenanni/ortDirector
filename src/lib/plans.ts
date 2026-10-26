@@ -1,10 +1,11 @@
 // Care plans from the catalog: what to do after a plant goes into its final
 // spot, counted from that day. Pure logic, no React Native imports, so it runs
 // under `node --test` (see plans.test.ts).
-import { customFor } from './custom.ts';
+import { CATALOG_EN } from './catalog-en.ts';
+import { customEntries, customEnglish, customFor } from './custom.ts';
 import { cat, tr } from './i18n.ts';
 import { addDays, nextInSeason } from './schedule.ts';
-import type { DayString, TaskType } from './types';
+import type { DayString, TaskMove, TaskType } from './types';
 
 export interface PlanStep {
   type: TaskType;
@@ -28,6 +29,8 @@ export interface SeasonalStep {
   every?: number;
   /** Only for plants that match: `{ potted: true }` is for pots only, `{ tender: true }` for plants that fear frost. */
   only?: Partial<CareContext>;
+  /** Ends with the plant moved: done, the app asks where it is now. */
+  moves?: TaskMove;
 }
 
 /** What the user told about the plant when adding it, beyond the catalog. */
@@ -65,13 +68,13 @@ const cavolaia = (until: number): PlanStep => ({
 
 /** Winter protection for plants that fear frost: pots go under cover, plants in the ground get covered. */
 const frost = (only: Partial<CareContext> = {}): SeasonalStep[] => [
-  { type: 'other', title: 'Mettere al riparo dal gelo', months: [11], only: { ...only, potted: true } },
-  { type: 'other', title: 'Riportare fuori', months: [4], only: { ...only, potted: true } },
+  { type: 'other', title: 'Mettere al riparo dal gelo', months: [11], only: { ...only, potted: true }, moves: 'in' },
+  { type: 'other', title: 'Riportare fuori', months: [4], only: { ...only, potted: true }, moves: 'out' },
   { type: 'other', title: 'Pacciamare e coprire con tessuto non tessuto', months: [11], only: { ...only, potted: false } },
   { type: 'other', title: 'Togliere la protezione invernale', months: [3], only: { ...only, potted: false } },
 ];
 
-const repot: SeasonalStep = { type: 'other', title: 'Controllare se serve un vaso più grande', months: [3], only: { potted: true } };
+const repot: SeasonalStep = { type: 'other', title: 'Controllare se serve un vaso più grande', months: [3], only: { potted: true }, moves: 'repot' };
 
 const establish = (every: number, until: number): PlanStep => ({
   type: 'water',
@@ -370,8 +373,8 @@ export const PLANS: Record<string, CropPlan> = {
     steps: [establish(2, 21)],
     seasonal: [
       { type: 'fertilize', title: 'Concimazione (agrumi)', months: range(3, 9), every: 30 },
-      { type: 'other', title: 'Mettere al riparo dal gelo', months: [11] },
-      { type: 'other', title: 'Riportare fuori', months: [4] },
+      { type: 'other', title: 'Mettere al riparo dal gelo', months: [11], moves: 'in' },
+      { type: 'other', title: 'Riportare fuori', months: [4], moves: 'out' },
     ],
   },
   // Fruits on the tips of the new shoots: prune lightly, right after picking.
@@ -404,8 +407,8 @@ export const PLANS: Record<string, CropPlan> = {
       { type: 'fertilize', title: 'Concimazione', months: range(4, 6), every: 30 },
       { type: 'prune', title: 'Togliere i fiori secchi', months: range(9, 11), every: 21 },
       repot,
-      { type: 'other', title: 'Mettere al riparo dal gelo', months: [11], only: { potted: true } },
-      { type: 'other', title: 'Riportare fuori', months: [4], only: { potted: true } },
+      { type: 'other', title: 'Mettere al riparo dal gelo', months: [11], only: { potted: true }, moves: 'in' },
+      { type: 'other', title: 'Riportare fuori', months: [4], only: { potted: true }, moves: 'out' },
       { type: 'other', title: 'Pacciamare la base contro il gelo', months: [11], only: { potted: false } },
     ],
   },
@@ -522,6 +525,24 @@ export interface PlannedTask {
   endsOn: DayString | null;
   yearly: boolean;
   months: number[] | null;
+  moves?: TaskMove | null;
+}
+
+/**
+ * The seasonal steps that move the plant, by title in both languages, from
+ * the built-in plans and the ones added from files: tasks saved before the
+ * marker existed are found by these.
+ */
+export function moveTitles(): Map<string, TaskMove> {
+  const out = new Map<string, TaskMove>();
+  const plans = [...Object.values(PLANS), ...customEntries().map((e) => e.plan)];
+  for (const s of plans.flatMap((p) => p.seasonal ?? [])) {
+    if (!s.moves) continue;
+    out.set(s.title, s.moves);
+    const en = CATALOG_EN[s.title] ?? customEnglish()[s.title];
+    if (en) out.set(en, s.moves);
+  }
+  return out;
 }
 
 /**
@@ -569,6 +590,7 @@ export function seasonalTasks(
     endsOn: null,
     yearly: !s.every,
     months: s.months,
+    ...(s.moves ? { moves: s.moves } : {}),
   }));
 }
 

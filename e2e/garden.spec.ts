@@ -198,3 +198,60 @@ test('a zone created while moving a plant is picked for it', async ({ page }) =>
   await page.waitForURL(new RegExp(`/plant/${id}$`));
   await expect(page.getByText('Balcone').first()).toBeVisible();
 });
+
+test('bringing a pot in for the winter asks where it goes, and bringing it out puts it back', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-11-02T10:00:00'));
+  for (const name of ['Terrazzo', 'Salotto']) {
+    await page.goto('/plants');
+    await page.getByRole('button', { name: /Nuova zona$/ }).click();
+    await page.getByPlaceholder('Es. Aiuola nord').fill(name);
+    await page.getByRole('button', { name: 'Salva' }).click();
+    await expect(page.getByText(name)).toBeVisible();
+  }
+  const id = await addPlant(page, 'Limone (vaso)', { zone: 'Terrazzo' });
+
+  await page.goto('/');
+  await row(page, 'Mettere al riparo dal gelo', 'Limone').getByRole('checkbox').click();
+  await page.waitForURL(/\/task\/moved/);
+  await expect(page.getByText(/^Dove metti limone/)).toBeVisible();
+  await page.getByRole('button', { name: /Salotto$/ }).click();
+  await page.screenshot({ path: 'test-results/riparo.png' });
+  await page.getByRole('button', { name: 'Fatto oggi' }).click();
+  await expect(row(page, 'Mettere al riparo dal gelo', 'Limone', 'Fatto oggi')).toBeVisible();
+
+  // Indoors now: rain leaves it alone.
+  await page.goto(`/plant/${id}`);
+  await expect(page.getByText(/^Salotto/)).toBeVisible();
+  await expect(page.getByText('Al coperto')).toBeVisible();
+  await page.screenshot({ path: 'test-results/pianta-dentro.png' });
+
+  // In April it goes back where it was.
+  await page.clock.setFixedTime(new Date('2027-04-01T10:00:00'));
+  await page.goto('/');
+  await row(page, 'Riportare fuori', 'Limone').getByRole('checkbox').click();
+  await page.waitForURL(/\/task\/moved/);
+  await expect(page.getByText(/posto dove stava prima/)).toBeVisible();
+  await page.screenshot({ path: 'test-results/fuori.png' });
+  await page.getByRole('button', { name: 'Fatto oggi' }).click();
+  await expect(row(page, 'Riportare fuori', 'Limone', 'Fatto oggi')).toBeVisible();
+  await page.goto(`/plant/${id}`);
+  await expect(page.getByText(/^Terrazzo/)).toBeVisible();
+  await expect(page.getByText('Al coperto')).toHaveCount(0);
+});
+
+test('checking for a bigger pot asks whether it was repotted, and yes opens the repotting', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2027-03-01T10:00:00'));
+  const id = await addPlant(page, 'Avocado');
+  await page.getByRole('button', { name: /Rinvasa o sposta/ }).click();
+  await page.getByRole('button', { name: /Segna lo spostamento/ }).click();
+  await page.waitForURL(new RegExp(`/plant/${id}$`));
+
+  await page.goto('/');
+  await row(page, 'Controllare se serve un vaso più grande', 'Avocado').getByRole('checkbox').click();
+  await page.waitForURL(/\/task\/moved/);
+  await expect(page.getByText('Hai rinvasato avocado?')).toBeVisible();
+  await page.screenshot({ path: 'test-results/vaso.png' });
+  await page.getByRole('button', { name: /Sì, segna il rinvaso/ }).click();
+  await page.waitForURL(/\/plant\/move/);
+  await expect(page.getByText('Dove va', { exact: true })).toBeVisible();
+});

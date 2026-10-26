@@ -27,6 +27,7 @@ function task(over: Partial<TaskWithPlant>): TaskWithPlant {
     yearly: false,
     months: null,
     coldRepeatDays: null,
+    moves: null,
     doneOn: null,
     notes: null,
     plantName: null,
