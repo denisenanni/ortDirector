@@ -33,6 +33,8 @@ L'app copre sia l'orto sia il giardino ornamentale, ed è pensata per una person
 
 ## Dopo la v1
 
+La v2 (mappa, poi ore di sole) è in [requirements-v2.md](requirements-v2.md).
+
 - Mappa schematica del giardino: le zone diventano rettangoli disegnabili, le piante ci stanno dentro.
 - Calendario di semina e raccolta per pianta del catalogo.
 - Diario con foto nel tempo.
