@@ -1,14 +1,14 @@
 # Requisiti ortDirector v2
 
-Stato: **bozza**, 2026-10-26. Domande 1-6 e 8 decise con denise il 2026-10-26; restano aperte la 7 e Android.
+Stato: **concordati** con denise il 2026-10-27.
 
 Parte da [requirements.md](requirements.md) (v1, fatta) e dall'app com'è oggi: zone con nome, esposizione e "al coperto"; piante in una zona, in vaso o in terra; avviso quando il sole che serve alla pianta non è quello della zona.
 
-Vincoli che restano: iPhone prima, Expo + TypeScript, tutto sul telefono, niente server né account, niente rete. Quello che la v2 usa deve girare anche in Expo Go (`react-native-svg`, `expo-location` ci sono già), così si prova senza rifare la build.
+Vincoli che restano: Expo + TypeScript, tutto sul telefono, niente server né account, niente rete. Quello che la v2 usa deve girare anche in Expo Go (`react-native-svg`, `expo-location` ci sono già), così si prova senza rifare la build.
 
 ## Ordine
 
-La v2 ha due fasi, in quest'ordine, e la seconda non parte prima che la prima sia sul telefono:
+La v2 ha due fasi, in quest'ordine, e la seconda non parte prima che la prima sia sul telefono. Android è un lavoro a parte, che non dipende dalle due fasi:
 
 1. **Mappa del giardino**, costruita sulle zone che esistono già.
 2. **Ore di sole stimate** per zona, dalla posizione GPS, dal percorso del sole e dagli ostacoli disegnati sulla mappa.
@@ -58,6 +58,10 @@ Le ore diventano l'esposizione che l'app usa già:
 | da 3 a 6 | Mezz'ombra |
 | meno di 3 | Ombra |
 
+### Alberi che perdono le foglie
+
+Un albero ostacolo ha la spunta **"Perde le foglie"** (fico, noce, tiglio). Con la spunta, da novembre a marzo non fa ombra: i rami nudi lasciano passare quasi tutta la luce. Senza spunta fa ombra tutto l'anno (sempreverdi, muri, casa).
+
 ### Cosa mostra
 
 - Nel dettaglio della zona: le ore di sole mese per mese, e l'esposizione che ne viene.
@@ -68,6 +72,16 @@ Le ore diventano l'esposizione che l'app usa già:
 
 La stima conta solo gli ostacoli disegnati. Un tetto del vicino non disegnato non fa ombra. Il terreno è piatto. La zona è valutata nel suo centro: in un'aiuola lunga metà può essere al sole e metà no. L'app lo scrive accanto al numero, non in una pagina di aiuto.
 
+## Android
+
+L'app gira anche su un telefono Android, con le stesse funzioni dell'iPhone. Il codice ha già i rami Android per icone, date e icona dell'app; quello che manca è provarla davvero:
+
+- Build installabile sul telefono Android (APK, senza Play Store).
+- Giro completo su un telefono vero: aggiungere una pianta, foto da fotocamera e galleria, promemoria (su Android servono il canale delle notifiche e il permesso esplicito da Android 13), backup su file e import, catalogo da file.
+- Quello che si rompe si sistema; i test e2e esistenti restano verdi.
+
+Il Play Store non è in v2.
+
 ## Non in v2
 
 Restano dove erano dopo la v1, salvo decisione diversa:
@@ -75,7 +89,7 @@ Restano dove erano dopo la v1, salvo decisione diversa:
 - Calendario di semina e raccolta per pianta.
 - Diario con foto nel tempo.
 - Catalogo modificabile dentro l'app (oggi si aggiunge da file JSON, ed è sufficiente).
-- Build vera (EAS, account Apple Developer) e Android.
+- Build vera per iPhone (EAS, account Apple Developer) e Play Store.
 - Posizione delle singole piante dentro un'aiuola (rotazione delle colture).
 - Foto o piantina come sfondo della mappa.
 
@@ -87,9 +101,6 @@ Restano dove erano dopo la v1, salvo decisione diversa:
 4. **Niente piante singole** sulla mappa: basta la zona.
 5. **Niente sfondo** (foto o piantina).
 6. **L'esposizione della zona** è la media delle ore di sole da aprile a settembre; gli altri mesi si vedono nel dettaglio. Si potrà affinare dopo averla usata.
+7. **"Perde le foglie"** sugli alberi ostacolo: da novembre a marzo non fanno ombra.
 8. **Calendario di semina, diario e catalogo modificabile** restano dopo la v2.
-
-## Domande aperte
-
-7. **Alberi che perdono le foglie** (fico, noce, tiglio): d'inverno sono rami nudi e la luce passa. Contarli come ombra piena tutto l'anno sottostima il sole da novembre a marzo. *Proposta: sull'ostacolo una spunta "perde le foglie", che da novembre a marzo non fa ombra.*
-9. **Android**: il codice è già quasi pronto (icone e date hanno già il ramo Android). Era "dopo" solo perché usi un iPhone. Va fatto solo se c'è un telefono Android su cui usarla davvero.
+9. **Android in v2** (2026-10-27), con APK installato a mano; Play Store dopo.
