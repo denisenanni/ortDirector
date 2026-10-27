@@ -21,7 +21,7 @@ La fase 2 ha bisogno di misure vere e del nord. Per questo la mappa le chiede da
 
 - **Il foglio**: una griglia in metri, una sola per tutto il giardino. Non ha un bordo fisso: si allarga per contenere quello che ci disegni. Le zone possono stare lontane fra loro e non toccarsi (l'aiuola davanti casa e l'orto dietro stanno sulla stessa mappa, con il vuoto in mezzo).
 - **Il nord**: una freccia che si gira. Di default in alto.
-- **Le zone** diventano rettangoli che si spostano, si ridimensionano e si ruotano. Solo rettangoli: niente cerchi né forme libere (un'aiuola a L sono due zone). Misure in metri, arrotondate a 10 cm.
+- **Le zone** diventano forme che si spostano e si ridimensionano: rettangoli (che si ruotano anche) e cerchi, per un vaso grande o un'aiuola tonda. Niente forme libere: un'aiuola a L sono due zone. Misure in metri, arrotondate a 10 cm.
 - **Le zone fuori mappa** (casa, serra di un'altra persona, il davanzale) restano zone normali senza forma. La mappa le elenca sotto, non le nasconde.
 
 Ogni zona ha al massimo una forma. Una zona senza forma funziona come oggi: niente di quello che c'è smette di funzionare se la mappa non la disegni mai.
@@ -36,7 +36,7 @@ Ogni zona ha al massimo una forma. Una zona senza forma funziona come oggi: nien
 
 ### Dati
 
-- Nuova versione del database (v9): la direzione del nord in `settings` e le colonne del rettangolo sulla zona (x, y, larghezza, lunghezza, rotazione). Le zone esistenti restano senza forma.
+- Nuova versione del database (v9): la direzione del nord in `settings` e le colonne della forma sulla zona (tipo rettangolo o cerchio, x, y, larghezza, lunghezza, rotazione; per il cerchio larghezza = diametro). Le zone esistenti restano senza forma.
 - La mappa va nel backup e torna con l'import. Un backup senza mappa (fatto prima della v2) si importa come oggi.
 
 ## Fase 2: ore di sole
@@ -44,7 +44,7 @@ Ogni zona ha al massimo una forma. Una zona senza forma funziona come oggi: nien
 ### Cosa serve in più sulla mappa
 
 - **La posizione** del giardino: un tocco su "Usa la mia posizione" (GPS, una volta sola, poi salvata) oppure latitudine e longitudine scritte a mano. Niente rete: il percorso del sole si calcola sul telefono.
-- **Gli ostacoli**: casa, muri, siepi, alberi. Sono rettangoli come le zone, con in più un'**altezza** in metri (un albero è il quadrato della sua chioma). Non hanno piante e non sono zone.
+- **Gli ostacoli**: casa, muri, siepi, alberi. Sono rettangoli o cerchi come le zone, con in più un'**altezza** in metri. Un albero è un cerchio grande quanto la sua chioma. Non hanno piante e non sono zone.
 
 ### Cosa calcola
 
@@ -83,7 +83,7 @@ Restano dove erano dopo la v1, salvo decisione diversa:
 
 1. **Una mappa sola**, con zone anche lontane e non collegate fra loro.
 2. **Misure in metri**, anche prese a passi, e il nord.
-3. **Solo rettangoli**, ruotabili. Niente cerchi né poligoni.
+3. **Rettangoli ruotabili e cerchi**, per le zone e per gli ostacoli (alberi). Niente poligoni liberi. (Il 2026-10-27 denise ha rimesso i cerchi, servono per l'ombra degli alberi.)
 4. **Niente piante singole** sulla mappa: basta la zona.
 5. **Niente sfondo** (foto o piantina).
 6. **L'esposizione della zona** è la media delle ore di sole da aprile a settembre; gli altri mesi si vedono nel dettaglio. Si potrà affinare dopo averla usata.
