@@ -1,6 +1,7 @@
 {
   "name": "ortdirector",
   "version": "1.0.0",
+  "license": "MIT",
   "main": "expo-router/entry",
   "dependencies": {
     "@expo-google-fonts/fraunces": "^0.4.1",
