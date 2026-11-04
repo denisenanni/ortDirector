@@ -1,5 +1,55 @@
 # ortDirector
 
+
+**ortDirector** is a mobile app for managing a vegetable garden and ornamental plants: what each plant needs (sun, water) and what has to be done today. I built it for my own garden and use it every day. The app UI is in Italian.
+
+**Built with:** React Native + Expo (SDK 57), TypeScript, Expo Router, SQLite on the device (no server, no account, no network), local notifications. Tested with `node --test` (logic and database), Playwright (end-to-end flows in the web build) and Maestro (the real iOS app in the simulator).
+
+### What it does
+
+- **Plants**: name, variety, zone, sun exposure, watering interval (one for May to September, one for the rest of the year), notes, one photo. About 25 common plants (tomato, basil, lavender, hydrangea, lemon...) pre-fill sun and water with a suggestion.
+- **Tasks**: watering, check, pruning, fertilizing, treatment, harvest, other. One-off or repeating every N days, optionally only in certain months (fertilize every 3 weeks, April to September) or once a year (prune in February). Every plant with a watering interval gets its own automatic watering task.
+- **Sowing and transplanting**: a plant starts as *sown*, *seedling* or *in place*. For catalog plants the app reminds you when a seedling is ready to transplant; marking the transplant generates that plant's care plan from that day (for tomatoes: frequent watering for 2 weeks, stake at +7 days, fertilizing from +15, weekly sucker removal, harvest from +70).
+- **Repot or move** an established plant, with the follow-up care and the seasonal tasks that change between pot and ground.
+- **Zones**: beds, balcony pots, greenhouse, each with the sun it actually gets and whether it is covered. The app warns when a plant's sun needs don't match its zone.
+- **"It rained"**: one tap counts every uncovered plant as watered.
+- **Today**: overdue and due today, the next 7 days, and later. Tap to mark done, tap again to undo.
+- **Reminders**: one notification a day at a time you choose, listing that day's tasks.
+- **History** per plant, an **archive** for annuals at the end of the season, and **JSON backup/restore** including photos.
+
+How it works internally (data model, scheduling rules, rain, seasons, transplant, backup, tests): [docs/come-funziona.md](docs/come-funziona.md) (Italian).
+
+### Run it
+
+Node 24 LTS (see `.nvmrc`) and corepack (`corepack enable`):
+
+```sh
+git clone https://github.com/denisenanni/ortDirector.git
+cd ortDirector
+yarn install
+yarn start        # scan the QR code with Expo Go on the phone
+yarn web          # or preview it in the browser
+```
+
+```sh
+yarn typecheck    # tsc
+yarn test         # logic and database tests on in-memory SQLite
+yarn e2e          # Playwright flows in the web build
+yarn maestro      # Maestro flows on the iOS simulator (macOS + Xcode)
+```
+
+Installing it on an iPhone without Expo Go (free Apple ID, Xcode): see the Italian section below, "Installarla sull'iPhone".
+
+### Roadmap
+
+The v2 requirements are agreed and written down in [docs/requirements-v2.md](docs/requirements-v2.md):
+
+1. **Garden map**: a new Map tab with a metric grid and a north arrow, where existing zones become rectangles and circles you can move, resize and rotate, showing plant counts, overdue tasks and sun warnings. New database version, included in backups.
+2. **Estimated sun hours** per zone: from GPS position, the sun's path computed on the device and obstacles drawn on the map (house, walls, hedges, trees with their height), giving direct-sun hours for a typical day of each month and turning them into the exposure the app already uses.
+3. **Android** support, and an EAS / TestFlight build.
+
+--- ITALIANO ---
+
 App per gestire orto e giardino: cosa ha bisogno ogni pianta (sole, acqua) e cosa c'è da fare oggi.
 React Native + Expo (SDK 57), TypeScript, dati solo sul telefono (SQLite), promemoria con notifiche locali.
 
