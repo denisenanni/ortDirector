@@ -35,6 +35,14 @@ const ICONS = {
   sprout: { ios: 'leaf', android: 'spa' },
   close: { ios: 'xmark', android: 'close' },
   covered: { ios: 'house.fill', android: 'home' },
+  map: { ios: 'map.fill', android: 'map' },
+  zoomIn: { ios: 'plus.magnifyingglass', android: 'zoom_in' },
+  zoomOut: { ios: 'minus.magnifyingglass', android: 'zoom_out' },
+  fit: { ios: 'arrow.up.left.and.arrow.down.right', android: 'fit_screen' },
+  rect: { ios: 'rectangle', android: 'rectangle' },
+  circle: { ios: 'circle', android: 'circle' },
+  ruler: { ios: 'ruler', android: 'straighten' },
+  remove: { ios: 'trash', android: 'delete' },
 } as const;
 
 export type IconName = keyof typeof ICONS;

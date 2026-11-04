@@ -8,9 +8,9 @@ Tutto sta sul telefono. Niente server, niente account, niente rete. I dati vivon
 
 Il codice è diviso in due strati:
 
-- **Le schermate** (`src/app/`): Oggi, Piante, Impostazioni, il dettaglio pianta, i form. Mostrano dati e chiamano funzioni. Decidono poco.
+- **Le schermate** (`src/app/`): Oggi, Piante, Mappa, Impostazioni, il dettaglio pianta e della zona, i form. Mostrano dati e chiamano funzioni. Decidono poco.
 - **La logica** (`src/lib/`), di due tipi:
-  - *Logica pura*: calcoli su date e numeri, senza database né telefono. `schedule.ts` (date, ripetizioni, pioggia, promemoria), `watering.ts` (intervalli), `plans.ts` (piani di cura), `presets.ts` e `kinds.ts` (catalogo), `backup.ts`, `catalogFile.ts`.
+  - *Logica pura*: calcoli su date e numeri, senza database né telefono. `schedule.ts` (date, ripetizioni, pioggia, promemoria), `watering.ts` (intervalli), `plans.ts` (piani di cura), `presets.ts` e `kinds.ts` (catalogo), `map.ts` (geometria della mappa), `backup.ts`, `catalogFile.ts`.
   - *Database*: `db.ts`. Prende le decisioni della logica pura e le scrive nelle tabelle: crea attività, le sposta, le chiude, migra lo schema, importa i backup.
 
 Quando l'app parte, `src/app/_layout.tsx` apre il database e chiama `migrate()`, che porta lo schema all'ultima versione e carica in memoria le piante aggiunte al catalogo da file. Poi le schermate rileggono dal database ogni volta che tornano in primo piano.
@@ -24,13 +24,13 @@ Sei tabelle. Le date sono testo `AAAA-MM-GG` in ora locale, così "oggi" è semp
 | `plants` | Una riga per pianta: nome, voce di catalogo (`preset`), zona, in vaso sì/no, taglia pianta e vaso, al coperto, sole che le serve, intervallo d'acqua estivo e invernale, fase (semenzaio o a dimora), date di semina e trapianto, annuale, archiviata, foto, note. |
 | `tasks` | Le attività aperte e chiuse. Ogni attività ha una scadenza (`due_on`) e, se si ripete, un intervallo, un intervallo invernale, una data di fine, i mesi ammessi, o "una volta l'anno". |
 | `task_log` | Lo storico: cosa hai fatto e quando. Salva anche la scadenza di prima, per poter togliere la spunta. |
-| `zones` | Aiuole, vasi, serra: nome, sole che prende davvero, coperta sì/no. |
+| `zones` | Aiuole, vasi, serra: nome, sole che prende davvero, coperta sì/no, e la forma sulla mappa se c'è. |
 | `catalog` | Le piante aggiunte al catalogo da file JSON, salvate così come erano nel file. |
-| `settings` | Chiave/valore: ora del promemoria, ultima pioggia, ultimo backup. |
+| `settings` | Chiave/valore: ora del promemoria, ultima pioggia, ultimo backup, direzione del nord sulla mappa. |
 
 ### Le versioni del database
 
-Ogni funzione che ha richiesto una colonna nuova ha alzato di uno la versione del database (`PRAGMA user_version`). All'avvio `migrate()` legge la versione salvata e applica in ordine i passi mancanti: un telefono fermo alla v2 passa per v3, v4, v5, v6 e v7 in un colpo solo.
+Ogni funzione che ha richiesto una colonna nuova ha alzato di uno la versione del database (`PRAGMA user_version`). All'avvio `migrate()` legge la versione salvata e applica in ordine i passi mancanti: un telefono fermo alla v2 passa per tutte le versioni dopo, fino all’ultima, in un colpo solo.
 
 | Ver. | Cosa ha aggiunto | Cosa fa ai dati esistenti |
 | --- | --- | --- |
@@ -41,6 +41,8 @@ Ogni funzione che ha richiesto una colonna nuova ha alzato di uno la versione de
 | 5 | Annuali, archivio, foto, scadenza precedente nello storico | Segna come annuali gli ortaggi del catalogo |
 | 6 | Catalogo da file, taglia pianta e vaso | Niente: taglie sconosciute contano come medie |
 | 7 | Pianta "al coperto" singola | Niente |
+| 8 | Attività che spostano la pianta | Segna come spostamenti le attività stagionali che lo sono, dal titolo |
+| 9 | Forma della zona sulla mappa | Niente: le zone esistenti restano fuori mappa |
 
 Una nuova versione va aggiunta in fondo a `migrate()` e, con il suo schema, in `migrations.test.ts`. Le versioni già uscite non si toccano più.
 
@@ -125,6 +127,17 @@ Archiviare un'annuale a fine stagione cancella le sue attività aperte e tiene l
 5. **Rinvaso o spostamento** (pianta già a dimora: dalla terra al vaso, a un vaso più grande, in casa). Il pulsante "Rinvasa o sposta" nella scheda chiede data, terra o vaso, taglie, zona e al coperto. `movePlant()` salva il posto nuovo e ricalcola l'acqua, scrive nello storico "Messa in vaso", "Messa in terra" o "Rinvaso", aggiunge le cure dopo lo spostamento (`REPOT_STEPS`: annaffiare bene il giorno stesso, controllare il terriccio ogni 2 giorni per 2 settimane, controllare al quinto giorno che non soffra) e, se lasci acceso "Niente concime per un po'", sposta le concimazioni dei prossimi 21 giorni a dopo. Se cambia tra terra e vaso, scambia anche le cure stagionali che ne dipendono: per un vaso "Mettere al riparo dal gelo" e "Riportare fuori", per la terra pacciamare e coprire.
 6. **Cosa si cambia da Modifica e cosa no.** Modifica serve a correggere: nome, varietà, date, taglia della pianta, zona e al coperto, acqua, ciclo, note. Terra o vaso e la misura del vaso lì si vedono soltanto, perché cambiarli è uno spostamento: si passa da "Rinvasa o sposta", che aggiunge le cure dopo e lo segna nello storico. Se hai sbagliato quando l'hai inserita, usa comunque "Rinvasa o sposta" e togli le cure.
 
+## Mappa
+
+Una griglia in metri, una sola per tutto il giardino, senza bordo: la vista si adatta a quello che c'è disegnato. Ogni zona ha al massimo una forma, salvata sulla riga della zona (`shape` = `rect` o `circle`, `x` e `y` il centro, `width`, `length`, `rotation` in gradi in senso orario). Il cerchio ha `length` = `width` = diametro e non ruota. Le coordinate vanno con x a destra e y verso il basso dello schermo; il nord sta in `settings` come gradi in senso orario da "su" della mappa (0 = in alto).
+
+- **Guardare**: ogni zona mostra nome e piante; un pallino se ha attività di oggi o in ritardo; il bordo arancione se una pianta vuole più o meno sole di quello che la zona prende, come nella lista Piante. Un tocco apre la pagina della zona con le sue piante. Le zone senza forma sono elencate sotto, "Fuori mappa".
+- **Modifica** (la matita): toccare una zona la seleziona; trascinarla la sposta, l'angolo in basso a destra la ridimensiona (l'angolo opposto resta fermo), il pallino nero sopra la ruota. Tutto si ferma ai 10 cm e ai 5°. La freccia del nord si gira col dito. Sotto la mappa: rettangolo o cerchio, misure (apre il form), togli dalla mappa; senza selezione, le zone fuori mappa da metterci e "Nuova zona".
+- **Zoom**: due dita, o i pulsanti + e −; "Mostra tutto" rifà l'inquadratura.
+- **Form della zona**: "Sulla mappa" No / Rettangolo / Cerchio, con larghezza, lunghezza e rotazione scritte a mano. Una zona nuova con forma va a destra di quello che c'è già.
+
+La geometria (snap, rotazioni, ridimensionamento, cosa sta sotto il dito, zoom) è tutta in `map.ts` ed è provata in `map.test.ts`; `GardenMap.tsx` disegna con `react-native-svg` e trasforma i tocchi in punti in metri. Il backup copia le tabelle intere, quindi la mappa ci va da sola.
+
 ## Catalogo da file
 
 Impostazioni › Catalogo apre un file JSON (formato in [catalog-file.md](catalog-file.md)). `catalogFile.ts` controlla ogni voce e dice cosa non va e dove. Una voce non può ridefinire una pianta già nel catalogo integrato. Le voci buone finiscono nella tabella `catalog` così come le hai scritte, e a ogni avvio vengono rilette in memoria accanto a quelle integrate. Togliere una voce non tocca le piante già create da quella voce.
@@ -153,9 +166,10 @@ Una notifica al giorno, all'ora scelta in Impostazioni (8 di default), per i pro
 | `i18n.test.ts` | Traduzioni del catalogo e delle etichette |
 | `db.test.ts` | Cosa scrive ogni azione su un SQLite vero in memoria: spunta, pioggia, trapianto, rinvaso, archivio, zone, catalogo, backup |
 | `migrations.test.ts` | Un giardino a ogni versione vecchia del database, aggiornato all'ultima |
+| `map.test.ts` | Geometria della mappa: snap, zone ruotate, ridimensionamento, tocchi, zoom, cosa mostra ogni zona |
 
 `db.test.ts` e `migrations.test.ts` usano `memoryDb.ts`: il SQLite di Node dietro i pochi metodi di expo-sqlite che `db.ts` usa.
 
-`yarn e2e` prova l'app intera nel browser (Playwright su Chromium, a misura di iPhone): costruisce la versione web, la apre e usa le schermate vere come faresti sul telefono. I percorsi sono in `e2e/garden.spec.ts`: aggiungere una pianta e spuntarla, la pioggia con le piante al coperto, semina e trapianto, il basilico messo in vaso in casa, l'avviso sole della zona, un'attività rimandata, il backup portato su un altro "telefono". Ogni test parte da un orto vuoto il 15 giugno 2026, così le date non dipendono da quando gira. Su GitHub gira a ogni pull request, accanto a `yarn test`.
+`yarn e2e` prova l'app intera nel browser (Playwright su Chromium, a misura di iPhone): costruisce la versione web, la apre e usa le schermate vere come faresti sul telefono. I percorsi sono in `e2e/garden.spec.ts`: aggiungere una pianta e spuntarla, la pioggia con le piante al coperto, semina e trapianto, il basilico messo in vaso in casa, l'avviso sole della zona, un'attività rimandata, il backup portato su un altro "telefono". In `e2e/map.spec.ts`: una zona disegnata, ridimensionata e spostata col mouse, che resta dopo il riavvio e apre le sue piante. Ogni test parte da un orto vuoto il 15 giugno 2026, così le date non dipendono da quando gira. Su GitHub gira a ogni pull request, accanto a `yarn test`.
 
 Per l'app iOS vera ci sono i percorsi Maestro in `.maestro/` (`yarn maestro`, solo sul Mac con il simulatore): gli stessi giri principali più le notifiche negate. Non girano su GitHub. Restano senza test automatici fotocamera, foglio di condivisione e date picker di iOS.

@@ -1,27 +1,11 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
-import { Image, Pressable, ScrollView, Text, View } from 'react-native';
-import { Icon, SUN_SYMBOL } from '@/components/Icon';
-import {
-  Body,
-  Button,
-  Empty,
-  Group,
-  IconButton,
-  LargeHeader,
-  Pill,
-  PillRow,
-  SERIF,
-  Screen,
-  SectionHeader,
-  useTheme,
-} from '@/components/ui';
+import { ScrollView, Text, View } from 'react-native';
+import { SUN_SYMBOL } from '@/components/Icon';
+import { PlantRow } from '@/components/PlantRow';
+import { Body, Button, Empty, Group, IconButton, LargeHeader, Screen, SectionHeader, useTheme } from '@/components/ui';
 import { listPlants, listZones } from '@/lib/db';
-import { PlantAvatar, waterLabel } from '@/components/PlantAvatar';
-import { photoUri } from '@/lib/photos';
-import { SUN_LABEL } from '@/lib/presets';
-import { sunMismatch } from '@/lib/schedule';
 import type { Plant, Zone } from '@/lib/types';
 import { tr } from '@/lib/i18n';
 
@@ -41,51 +25,7 @@ export default function PlantsScreen() {
   const plants = data.plants.filter((p) => !p.archivedOn);
   const archived = data.plants.filter((p) => p.archivedOn);
 
-  const row = (p: Plant, zone?: Zone) => {
-    const warn = zone && sunMismatch(p.sun, zone.sun);
-    const uri = photoUri(p.photo);
-    return (
-      <Pressable
-        key={p.id}
-        onPress={() => router.push(`/plant/${p.id}`)}
-        style={({ pressed }) => [
-          { flexDirection: 'row', gap: 14, alignItems: 'center', padding: 12, paddingRight: 14 },
-          pressed && { opacity: 0.6 },
-        ]}
-      >
-        {uri ? (
-          <Image source={{ uri }} style={{ width: 52, height: 52, borderRadius: 14 }} />
-        ) : (
-          <PlantAvatar plant={p} />
-        )}
-        <View style={{ flex: 1, gap: 6 }}>
-          <Text style={{ fontFamily: SERIF, fontSize: 18, lineHeight: 23, color: t.text }}>
-            {p.name}
-            {p.variety ? <Text style={{ color: t.muted }}> {p.variety}</Text> : null}
-          </Text>
-          <PillRow>
-            <Pill icon={SUN_SYMBOL[p.sun]} tone="sun" label={SUN_LABEL[p.sun]} />
-            {p.waterEveryDays ? (
-              <Pill
-                icon="water"
-                tone="water"
-                label={waterLabel(p)}
-              />
-            ) : null}
-            {p.potted ? <Pill label={tr('In vaso', 'In a pot')} /> : null}
-            {p.stage === 'seedbed' ? <Pill tone="accent" label={tr('Da trapiantare', 'To transplant')} /> : null}
-          </PillRow>
-          {warn ? (
-            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-              <Icon name="warn" size={14} color={t.warn} />
-              <Text style={{ color: t.warn, fontSize: 14, flex: 1 }}>{warn}</Text>
-            </View>
-          ) : null}
-        </View>
-        <Icon name="chevron" size={16} color={t.muted} />
-      </Pressable>
-    );
-  };
+  const row = (p: Plant, zone?: Zone) => <PlantRow key={p.id} plant={p} zone={zone} />;
 
   // Zones with plants first, empty ones after the plants.
   const planted = zones.filter((z) => plants.some((p) => p.zoneId === z.id));

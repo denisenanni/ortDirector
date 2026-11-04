@@ -279,6 +279,8 @@ test('plants added to the catalog are saved, replaced by name and removed', asyn
 test('a backup restores the same garden on another phone', async () => {
   const d = await fresh();
   const zone = await db.saveZone(d, { name: 'Serra', sun: 'partial', covered: true });
+  await db.setZoneShape(d, zone, { kind: 'rect', x: 3.5, y: -2, width: 4, length: 2.5, rotation: 30 });
+  await db.setNorth(d, 40);
   await db.addToCatalog(d, parseCatalogFile(mimosa));
   const id = await db.createPlant(d, plant({ name: 'Rosa', preset: 'Rosa', zoneId: zone }));
   await db.setPlantPhoto(d, id, 'plant-1-1700000000000.jpg');
@@ -294,8 +296,37 @@ test('a backup restores the same garden on another phone', async () => {
   assert.deepEqual(await db.listOpenTasks(other), await db.listOpenTasks(d));
   assert.deepEqual(await db.listPlantLog(other, id), await db.listPlantLog(d, id));
   assert.equal(await db.getReminderHour(other), 7);
+  assert.equal((await db.getZone(other, zone))!.shape!.rotation, 30);
+  assert.equal(await db.getNorth(other), 40);
   assert.ok(customFor('Mimosa tardiva'));
   assert.deepEqual(photoNames((await db.exportBackup(other)).tables), ['plant-1-1700000000000.jpg']);
+});
+
+test('a zone goes on the map, changes shape and comes off it', async () => {
+  const d = await fresh();
+  const id = await db.saveZone(d, { name: 'Orto', sun: 'full', covered: false });
+  assert.equal((await db.getZone(d, id))!.shape, null);
+
+  await db.setZoneShape(d, id, { kind: 'rect', x: 1, y: 2, width: 3, length: 1.5, rotation: 15 });
+  // Saving the form without a shape leaves the map alone.
+  await db.saveZone(d, { id, name: 'Orto grande', sun: 'full', covered: false });
+  assert.deepEqual((await db.getZone(d, id))!.shape, { kind: 'rect', x: 1, y: 2, width: 3, length: 1.5, rotation: 15 });
+
+  // A circle is as long as it is wide and doesn't turn.
+  await db.setZoneShape(d, id, { kind: 'circle', x: 1, y: 2, width: 2, length: 5, rotation: 15 });
+  assert.deepEqual((await db.getZone(d, id))!.shape, { kind: 'circle', x: 1, y: 2, width: 2, length: 2, rotation: 0 });
+
+  await db.saveZone(d, { id, name: 'Orto grande', sun: 'full', covered: false, shape: null });
+  assert.equal((await db.getZone(d, id))!.shape, null);
+});
+
+test('north is kept between 0 and 360 degrees', async () => {
+  const d = await fresh();
+  assert.equal(await db.getNorth(d), 0);
+  await db.setNorth(d, -30);
+  assert.equal(await db.getNorth(d), 330);
+  await db.setNorth(d, 725);
+  assert.equal(await db.getNorth(d), 5);
 });
 
 test('a backup from before zones and annuals still imports', async () => {
