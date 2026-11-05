@@ -3212,6 +3212,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"expo-location@npm:~57.0.21":
+  version: 57.0.22
+  resolution: "expo-location@npm:57.0.22"
+  dependencies:
+    "@expo/image-utils": "npm:^0.11.6"
+  peerDependencies:
+    expo: "*"
+  checksum: 10c0/6ead58c053509db247d07968692739c76a04aeb8a9303eda9813095baa9bb3c56206bd6b6eee3f4d213efffbce94bf035d8a38c14328be9ba5be1f64091f685b
+  languageName: node
+  linkType: hard
+
 "expo-modules-autolinking@npm:~57.0.16":
   version: 57.0.16
   resolution: "expo-modules-autolinking@npm:57.0.16"
@@ -4994,6 +5005,7 @@ __metadata:
     expo-image-picker: "npm:~57.0.20"
     expo-linking: "npm:~57.0.13"
     expo-localization: "npm:~57.0.2"
+    expo-location: "npm:~57.0.21"
     expo-notifications: "npm:~57.0.23"
     expo-router: "npm:~57.0.28"
     expo-sharing: "npm:~57.0.23"

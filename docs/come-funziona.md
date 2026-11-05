@@ -17,7 +17,7 @@ Quando l'app parte, `src/app/_layout.tsx` apre il database e chiama `migrate()`,
 
 ## I dati
 
-Sei tabelle. Le date sono testo `AAAA-MM-GG` in ora locale, così "oggi" è sempre il tuo oggi.
+Sette tabelle. Le date sono testo `AAAA-MM-GG` in ora locale, così "oggi" è sempre il tuo oggi.
 
 | Tabella | Cosa contiene |
 | --- | --- |
@@ -25,8 +25,9 @@ Sei tabelle. Le date sono testo `AAAA-MM-GG` in ora locale, così "oggi" è semp
 | `tasks` | Le attività aperte e chiuse. Ogni attività ha una scadenza (`due_on`) e, se si ripete, un intervallo, un intervallo invernale, una data di fine, i mesi ammessi, o "una volta l'anno". |
 | `task_log` | Lo storico: cosa hai fatto e quando. Salva anche la scadenza di prima, per poter togliere la spunta. |
 | `zones` | Aiuole, vasi, serra: nome, sole che prende davvero, coperta sì/no, e la forma sulla mappa se c'è. |
+| `obstacles` | Case, muri, siepi, alberi sulla mappa: nome, forma come le zone, altezza, perde le foglie sì/no. |
 | `catalog` | Le piante aggiunte al catalogo da file JSON, salvate così come erano nel file. |
-| `settings` | Chiave/valore: ora del promemoria, ultima pioggia, ultimo backup, direzione del nord sulla mappa. |
+| `settings` | Chiave/valore: ora del promemoria, ultima pioggia, ultimo backup, direzione del nord sulla mappa, posizione del giardino (`place`, latitudine e longitudine). |
 
 ### Le versioni del database
 
@@ -43,6 +44,7 @@ Ogni funzione che ha richiesto una colonna nuova ha alzato di uno la versione de
 | 7 | Pianta "al coperto" singola | Niente |
 | 8 | Attività che spostano la pianta | Segna come spostamenti le attività stagionali che lo sono, dal titolo |
 | 9 | Forma della zona sulla mappa | Niente: le zone esistenti restano fuori mappa |
+| 10 | Ostacoli per le ore di sole | Niente: la mappa parte senza ostacoli |
 
 Una nuova versione va aggiunta in fondo a `migrate()` e, con il suo schema, in `migrations.test.ts`. Le versioni già uscite non si toccano più.
 
@@ -138,6 +140,17 @@ Una griglia in metri, una sola per tutto il giardino, senza bordo: la vista si a
 
 La geometria (snap, rotazioni, ridimensionamento, cosa sta sotto il dito, zoom) è tutta in `map.ts` ed è provata in `map.test.ts`; `GardenMap.tsx` disegna con `react-native-svg` e trasforma i tocchi in punti in metri. Il backup copia le tabelle intere, quindi la mappa ci va da sola.
 
+## Ore di sole
+
+Servono la posizione del giardino (Impostazioni o la mappa: "Usa la mia posizione" col GPS una volta, oppure latitudine e longitudine a mano; tutto resta sul telefono) e gli ostacoli disegnati sulla mappa in modalità Modifica, con "Nuovo ostacolo": rettangoli o cerchi come le zone, con un'altezza. Un albero è un cerchio largo quanto la chioma; con "Perde le foglie" da novembre a marzo non fa ombra.
+
+Il calcolo (`sun.ts`) prende il 15 di ogni mese, la posizione del sole ogni 15 minuti (formule NOAA, senza rifrazione), e per ogni momento guarda se dal centro della zona, verso il sole, si incontra un ostacolo più alto della linea del sole in quel punto. Ogni ostacolo è un blocco pieno fino alla sua altezza; un centro sotto la chioma di un albero è all'ombra. La somma dà le ore di sole diretto possibile di quel giorno, a cielo sereno.
+
+- **Pagina della zona**: le ore mese per mese e la media da aprile a settembre, che dà l'esposizione (6 ore o più pieno sole, da 3 a 6 mezz'ombra, meno di 3 ombra). Se non è quella della zona l'app lo dice e offre il pulsante per cambiarla; da sola non la cambia.
+- **Mappa, modalità Sole** (il pulsante col sole): le zone colorate per le ore del mese scelto, l'ombra degli ostacoli all'ora scelta col cursore, e sulla bussola un pallino dove sta il sole.
+
+Limiti, scritti anche accanto ai numeri: contano solo gli ostacoli disegnati, il terreno è piatto, la zona è misurata nel suo centro.
+
 ## Catalogo da file
 
 Impostazioni › Catalogo apre un file JSON (formato in [catalog-file.md](catalog-file.md)). `catalogFile.ts` controlla ogni voce e dice cosa non va e dove. Una voce non può ridefinire una pianta già nel catalogo integrato. Le voci buone finiscono nella tabella `catalog` così come le hai scritte, e a ogni avvio vengono rilette in memoria accanto a quelle integrate. Togliere una voce non tocca le piante già create da quella voce.
@@ -167,9 +180,10 @@ Una notifica al giorno, all'ora scelta in Impostazioni (8 di default), per i pro
 | `db.test.ts` | Cosa scrive ogni azione su un SQLite vero in memoria: spunta, pioggia, trapianto, rinvaso, archivio, zone, catalogo, backup |
 | `migrations.test.ts` | Un giardino a ogni versione vecchia del database, aggiornato all'ultima |
 | `map.test.ts` | Geometria della mappa: snap, zone ruotate, ridimensionamento, tocchi, zoom, cosa mostra ogni zona |
+| `sun.test.ts` | Posizione del sole (altezza a mezzogiorno, lunghezza del giorno a Roma, all'equatore, a Sydney, al polo), ombra di muri, case e alberi, ore e esposizione, forma dell'ombra |
 
 `db.test.ts` e `migrations.test.ts` usano `memoryDb.ts`: il SQLite di Node dietro i pochi metodi di expo-sqlite che `db.ts` usa.
 
-`yarn e2e` prova l'app intera nel browser (Playwright su Chromium, a misura di iPhone): costruisce la versione web, la apre e usa le schermate vere come faresti sul telefono. I percorsi sono in `e2e/garden.spec.ts`: aggiungere una pianta e spuntarla, la pioggia con le piante al coperto, semina e trapianto, il basilico messo in vaso in casa, l'avviso sole della zona, un'attività rimandata, il backup portato su un altro "telefono". In `e2e/map.spec.ts`: una zona disegnata, ridimensionata e spostata col mouse, che resta dopo il riavvio e apre le sue piante. Ogni test parte da un orto vuoto il 15 giugno 2026, così le date non dipendono da quando gira. Su GitHub gira a ogni pull request, accanto a `yarn test`.
+`yarn e2e` prova l'app intera nel browser (Playwright su Chromium, a misura di iPhone): costruisce la versione web, la apre e usa le schermate vere come faresti sul telefono. I percorsi sono in `e2e/garden.spec.ts`: aggiungere una pianta e spuntarla, la pioggia con le piante al coperto, semina e trapianto, il basilico messo in vaso in casa, l'avviso sole della zona, un'attività rimandata, il backup portato su un altro "telefono". In `e2e/map.spec.ts`: una zona disegnata, ridimensionata e spostata col mouse, che resta dopo il riavvio e apre le sue piante. In `e2e/sun.spec.ts`: la posizione scritta a mano, una casa a sud di un'aiuola che le toglie il sole, la proposta di cambiare l'esposizione, la mappa in modalità Sole. Ogni test parte da un orto vuoto il 15 giugno 2026, così le date non dipendono da quando gira. Su GitHub gira a ogni pull request, accanto a `yarn test`.
 
 Per l'app iOS vera ci sono i percorsi Maestro in `.maestro/` (`yarn maestro`, solo sul Mac con il simulatore): gli stessi giri principali più le notifiche negate. Non girano su GitHub. Restano senza test automatici fotocamera, foglio di condivisione e date picker di iOS.

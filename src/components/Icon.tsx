@@ -43,6 +43,9 @@ const ICONS = {
   circle: { ios: 'circle', android: 'circle' },
   ruler: { ios: 'ruler', android: 'straighten' },
   remove: { ios: 'trash', android: 'delete' },
+  minus: { ios: 'minus', android: 'remove' },
+  locate: { ios: 'location.fill', android: 'my_location' },
+  obstacle: { ios: 'building.2.fill', android: 'apartment' },
 } as const;
 
 export type IconName = keyof typeof ICONS;

@@ -7,11 +7,12 @@ import { REPOT_NO_FEED_DAYS, moveTitles, placementCare, planFor, regularWatering
 import { local, tr } from './i18n.ts';
 import { isAnnual, presetFor } from './presets.ts';
 import { addDays, afterRain, completeTask, today } from './schedule.ts';
+import type { Place } from './sun.ts';
 import { coldWateringDefault } from './watering.ts';
-import type { DayString, DoneEntry, LogEntry, Plant, Size, Stage, Sun, Task, TaskMove, TaskType, TaskWithPlant, Zone, ZoneShape } from './types';
+import type { DayString, DoneEntry, LogEntry, Obstacle, Plant, Size, Stage, Sun, Task, TaskMove, TaskType, TaskWithPlant, Zone, ZoneShape } from './types';
 
 export const DATABASE_NAME = 'ortdirector.db';
-export const DATABASE_VERSION = 9;
+export const DATABASE_VERSION = 10;
 
 export async function migrate(db: SQLiteDatabase) {
   await db.execAsync('PRAGMA foreign_keys = ON;');
@@ -178,7 +179,26 @@ export async function migrate(db: SQLiteDatabase) {
     `);
     version = 9;
   }
-  // Future migrations: if (version === 9) { ...; version = 10; }
+  if (version === 9) {
+    // Sun hours: houses, walls, hedges and trees that shade the zones. The
+    // garden's position goes in settings.
+    await db.execAsync(`
+      CREATE TABLE obstacles (
+        id INTEGER PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL,
+        shape TEXT NOT NULL,
+        x REAL NOT NULL,
+        y REAL NOT NULL,
+        width REAL NOT NULL,
+        length REAL NOT NULL,
+        rotation REAL NOT NULL DEFAULT 0,
+        height REAL NOT NULL,
+        deciduous INTEGER NOT NULL DEFAULT 0
+      );
+    `);
+    version = 10;
+  }
+  // Future migrations: if (version === 10) { ...; version = 11; }
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
   await loadCatalog(db);
 }
@@ -781,7 +801,7 @@ interface ZoneRow {
   rotation: number | null;
 }
 
-function toShape(r: ZoneRow): ZoneShape | null {
+function toShape(r: Pick<ZoneRow, 'shape' | 'x' | 'y' | 'width' | 'length' | 'rotation'>): ZoneShape | null {
   if (r.shape !== 'rect' && r.shape !== 'circle') return null;
   if (r.x === null || r.y === null || !r.width || r.width <= 0) return null;
   const length = r.shape === 'circle' ? r.width : r.length;
@@ -846,6 +866,67 @@ export async function deleteZone(db: SQLiteDatabase, id: number) {
   const { total } = await countZonePlants(db, id);
   if (total > 0) throw new Error(tr('La zona ha ancora delle piante.', 'The zone still has plants.'));
   await db.runAsync('DELETE FROM zones WHERE id = ?', id);
+}
+
+// --- Obstacles ---------------------------------------------------------------
+
+interface ObstacleRow {
+  id: number;
+  name: string;
+  shape: string;
+  x: number;
+  y: number;
+  width: number;
+  length: number;
+  rotation: number;
+  height: number;
+  deciduous: number;
+}
+
+function toObstacle(r: ObstacleRow): Obstacle | null {
+  const shape = toShape(r);
+  return shape ? { id: r.id, name: r.name, shape, height: r.height, deciduous: r.deciduous === 1 } : null;
+}
+
+/** The obstacles on the map; a row whose shape no longer checks out is left out. */
+export async function listObstacles(db: SQLiteDatabase): Promise<Obstacle[]> {
+  const rows = await db.getAllAsync<ObstacleRow>('SELECT * FROM obstacles ORDER BY name COLLATE NOCASE, id');
+  return rows.map(toObstacle).filter((o): o is Obstacle => o !== null);
+}
+
+export async function getObstacle(db: SQLiteDatabase, id: number): Promise<Obstacle | null> {
+  const row = await db.getFirstAsync<ObstacleRow>('SELECT * FROM obstacles WHERE id = ?', id);
+  return row ? toObstacle(row) : null;
+}
+
+/** Adds the obstacle, or replaces it when it has an id. */
+export async function saveObstacle(db: SQLiteDatabase, o: Omit<Obstacle, 'id'> & { id?: number }): Promise<number> {
+  const s = o.shape;
+  const circle = s.kind === 'circle';
+  const values = [o.name, s.kind, s.x, s.y, s.width, circle ? s.width : s.length, circle ? 0 : s.rotation, o.height, o.deciduous ? 1 : 0];
+  if (o.id) {
+    await db.runAsync(
+      'UPDATE obstacles SET name = ?, shape = ?, x = ?, y = ?, width = ?, length = ?, rotation = ?, height = ?, deciduous = ? WHERE id = ?',
+      ...values, o.id,
+    );
+    return o.id;
+  }
+  return (
+    await db.runAsync(
+      'INSERT INTO obstacles (name, shape, x, y, width, length, rotation, height, deciduous) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      ...values,
+    )
+  ).lastInsertRowId;
+}
+
+/** Moves, resizes or turns the obstacle on the map. */
+export async function setObstacleShape(db: SQLiteDatabase, id: number, shape: ZoneShape) {
+  const o = await getObstacle(db, id);
+  if (o) await saveObstacle(db, { ...o, shape });
+}
+
+export async function deleteObstacle(db: SQLiteDatabase, id: number) {
+  await db.runAsync('DELETE FROM obstacles WHERE id = ?', id);
 }
 
 // --- Catalog added from files ------------------------------------------------
@@ -953,6 +1034,34 @@ export async function setNorth(db: SQLiteDatabase, degrees: number) {
     `INSERT INTO settings (key, value) VALUES ('north', ?)
      ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
     String(((degrees % 360) + 360) % 360),
+  );
+}
+
+/** Where the garden is on Earth, for the sun's path. Null until set. */
+export async function getPlace(db: SQLiteDatabase): Promise<Place | null> {
+  const row = await db.getFirstAsync<{ value: string }>(`SELECT value FROM settings WHERE key = 'place'`);
+  if (!row) return null;
+  try {
+    const p = JSON.parse(row.value) as Partial<Place>;
+    return validPlace(p) ? { lat: p.lat!, lon: p.lon! } : null;
+  } catch {
+    return null;
+  }
+}
+
+export const validPlace = (p: Partial<Place> | null): boolean =>
+  !!p && Number.isFinite(p.lat) && Number.isFinite(p.lon) && Math.abs(p.lat!) <= 90 && Math.abs(p.lon!) <= 180;
+
+export async function setPlace(db: SQLiteDatabase, p: Place | null) {
+  if (!p) {
+    await db.runAsync(`DELETE FROM settings WHERE key = 'place'`);
+    return;
+  }
+  if (!validPlace(p)) throw new Error('Invalid place');
+  await db.runAsync(
+    `INSERT INTO settings (key, value) VALUES ('place', ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    JSON.stringify({ lat: p.lat, lon: p.lon }),
   );
 }
 

@@ -88,7 +88,7 @@ export function bounds(shapes: ZoneShape[]): Bounds | null {
  * When none is right under it, one within `pad` metres, so a thin hedge
  * can still be touched with a finger.
  */
-export function hit(zones: { id: number; shape: ZoneShape }[], p: Point, pad = 0): number | null {
+export function hit<K>(zones: { id: K; shape: ZoneShape }[], p: Point, pad = 0): K | null {
   for (let i = zones.length - 1; i >= 0; i--) if (contains(zones[i].shape, p)) return zones[i].id;
   if (pad > 0) for (let i = zones.length - 1; i >= 0; i--) if (contains(zones[i].shape, p, pad)) return zones[i].id;
   return null;
