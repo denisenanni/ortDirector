@@ -8,10 +8,10 @@ import { local, tr } from './i18n.ts';
 import { isAnnual, presetFor } from './presets.ts';
 import { addDays, afterRain, completeTask, today } from './schedule.ts';
 import { coldWateringDefault } from './watering.ts';
-import type { DayString, DoneEntry, LogEntry, Plant, Size, Stage, Sun, Task, TaskMove, TaskType, TaskWithPlant, Zone } from './types';
+import type { DayString, DoneEntry, LogEntry, Plant, Size, Stage, Sun, Task, TaskMove, TaskType, TaskWithPlant, Zone, ZoneShape } from './types';
 
 export const DATABASE_NAME = 'ortdirector.db';
-export const DATABASE_VERSION = 8;
+export const DATABASE_VERSION = 9;
 
 export async function migrate(db: SQLiteDatabase) {
   await db.execAsync('PRAGMA foreign_keys = ON;');
@@ -166,7 +166,19 @@ export async function migrate(db: SQLiteDatabase) {
     `);
     version = 8;
   }
-  // Future migrations: if (version === 8) { ...; version = 9; }
+  if (version === 8) {
+    // The garden map: each zone may have one shape, in metres. Zones already there stay off the map.
+    await db.execAsync(`
+      ALTER TABLE zones ADD COLUMN shape TEXT;
+      ALTER TABLE zones ADD COLUMN x REAL;
+      ALTER TABLE zones ADD COLUMN y REAL;
+      ALTER TABLE zones ADD COLUMN width REAL;
+      ALTER TABLE zones ADD COLUMN length REAL;
+      ALTER TABLE zones ADD COLUMN rotation REAL NOT NULL DEFAULT 0;
+    `);
+    version = 9;
+  }
+  // Future migrations: if (version === 9) { ...; version = 10; }
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
   await loadCatalog(db);
 }
@@ -761,9 +773,23 @@ interface ZoneRow {
   name: string;
   sun: Sun;
   covered: number;
+  shape: string | null;
+  x: number | null;
+  y: number | null;
+  width: number | null;
+  length: number | null;
+  rotation: number | null;
 }
 
-const toZone = (r: ZoneRow): Zone => ({ id: r.id, name: r.name, sun: r.sun, covered: r.covered === 1 });
+function toShape(r: ZoneRow): ZoneShape | null {
+  if (r.shape !== 'rect' && r.shape !== 'circle') return null;
+  if (r.x === null || r.y === null || !r.width || r.width <= 0) return null;
+  const length = r.shape === 'circle' ? r.width : r.length;
+  if (!length || length <= 0) return null;
+  return { kind: r.shape, x: r.x, y: r.y, width: r.width, length, rotation: r.shape === 'circle' ? 0 : (r.rotation ?? 0) };
+}
+
+const toZone = (r: ZoneRow): Zone => ({ id: r.id, name: r.name, sun: r.sun, covered: r.covered === 1, shape: toShape(r) });
 
 export async function listZones(db: SQLiteDatabase): Promise<Zone[]> {
   const rows = await db.getAllAsync<ZoneRow>('SELECT * FROM zones ORDER BY name COLLATE NOCASE');
@@ -775,13 +801,35 @@ export async function getZone(db: SQLiteDatabase, id: number): Promise<Zone | nu
   return row ? toZone(row) : null;
 }
 
-export async function saveZone(db: SQLiteDatabase, z: Omit<Zone, 'id'> & { id?: number }): Promise<number> {
-  if (z.id) {
-    await db.runAsync('UPDATE zones SET name = ?, sun = ?, covered = ? WHERE id = ?', z.name, z.sun, z.covered ? 1 : 0, z.id);
-    return z.id;
+/**
+ * Saves the zone. Without `shape` the zone keeps where it is on the map (or
+ * stays off it, when new); null takes it off the map.
+ */
+export async function saveZone(
+  db: SQLiteDatabase,
+  z: Omit<Zone, 'id' | 'shape'> & { id?: number; shape?: ZoneShape | null },
+): Promise<number> {
+  let id = z.id;
+  if (id) {
+    await db.runAsync('UPDATE zones SET name = ?, sun = ?, covered = ? WHERE id = ?', z.name, z.sun, z.covered ? 1 : 0, id);
+  } else {
+    id = (await db.runAsync('INSERT INTO zones (name, sun, covered) VALUES (?, ?, ?)', z.name, z.sun, z.covered ? 1 : 0)).lastInsertRowId;
   }
-  const res = await db.runAsync('INSERT INTO zones (name, sun, covered) VALUES (?, ?, ?)', z.name, z.sun, z.covered ? 1 : 0);
-  return res.lastInsertRowId;
+  if (z.shape !== undefined) await setZoneShape(db, id, z.shape);
+  return id;
+}
+
+/** Puts the zone on the map, moves it, or takes it off (null). */
+export async function setZoneShape(db: SQLiteDatabase, id: number, s: ZoneShape | null) {
+  if (!s) {
+    await db.runAsync('UPDATE zones SET shape = NULL, x = NULL, y = NULL, width = NULL, length = NULL, rotation = 0 WHERE id = ?', id);
+    return;
+  }
+  const circle = s.kind === 'circle';
+  await db.runAsync(
+    'UPDATE zones SET shape = ?, x = ?, y = ?, width = ?, length = ?, rotation = ? WHERE id = ?',
+    s.kind, s.x, s.y, s.width, circle ? s.width : s.length, circle ? 0 : s.rotation, id,
+  );
 }
 
 /** How many plants are in the zone, archived ones included. */
@@ -892,6 +940,21 @@ export async function setLastBackup(db: SQLiteDatabase, day: DayString) {
 }
 
 // --- Settings --------------------------------------------------------------
+
+/** Where north is on the map, in degrees clockwise from map up. 0 when never set. */
+export async function getNorth(db: SQLiteDatabase): Promise<number> {
+  const row = await db.getFirstAsync<{ value: string }>(`SELECT value FROM settings WHERE key = 'north'`);
+  const deg = row ? Number(row.value) : NaN;
+  return Number.isFinite(deg) ? ((deg % 360) + 360) % 360 : 0;
+}
+
+export async function setNorth(db: SQLiteDatabase, degrees: number) {
+  await db.runAsync(
+    `INSERT INTO settings (key, value) VALUES ('north', ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    String(((degrees % 360) + 360) % 360),
+  );
+}
 
 export const DEFAULT_REMINDER_HOUR = 8;
 

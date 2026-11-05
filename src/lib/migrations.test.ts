@@ -50,6 +50,10 @@ const SCHEMA: Record<number, string> = {
     ALTER TABLE plants ADD COLUMN pot_size TEXT;`,
   7: `
     ALTER TABLE plants ADD COLUMN covered INTEGER NOT NULL DEFAULT 0;`,
+  8: `
+    ALTER TABLE tasks ADD COLUMN moves TEXT;
+    ALTER TABLE task_log ADD COLUMN prev_zone_id INTEGER REFERENCES zones(id) ON DELETE SET NULL;
+    ALTER TABLE task_log ADD COLUMN prev_covered INTEGER;`,
 };
 
 // A garden as the app of that version would have saved it: a rose and basil
@@ -133,7 +137,7 @@ for (let version = 1; version < db.DATABASE_VERSION; version++) {
 
     // Free-text positions became zones, and the greenhouse is covered.
     const zones = await db.listZones(d);
-    assert.deepEqual(zones.map((z) => [z.name, z.covered]), [['Serra', true], ['Vasi balcone', false]]);
+    assert.deepEqual(zones.map((z) => [z.name, z.covered, z.shape]), [['Serra', true, null], ['Vasi balcone', false, null]]);
     assert.equal(rose.zoneId, basil.zoneId);
     assert.equal(tomato.zoneId, zones[0].id);
     assert.deepEqual([rose.potted, basil.potted, tomato.potted], [true, true, false]);

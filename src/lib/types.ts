@@ -34,6 +34,23 @@ export interface Zone {
   sun: Sun;
   /** Greenhouse, under a roof, indoors: rain doesn't reach it. */
   covered: boolean;
+  /** Where it is on the garden map. Null for zones off the map (indoors, the windowsill). */
+  shape: ZoneShape | null;
+}
+
+/**
+ * A zone drawn on the map, in metres. x and y are the centre, x to the right
+ * and y down the screen (map up is y negative). Rectangles turn by rotation
+ * degrees clockwise around the centre; a circle's width is its diameter and
+ * length equals width.
+ */
+export interface ZoneShape {
+  kind: 'rect' | 'circle';
+  x: number;
+  y: number;
+  width: number;
+  length: number;
+  rotation: number;
 }
 
 export interface Plant {

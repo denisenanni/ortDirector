@@ -25,6 +25,7 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="index" options={{ title: tr('Oggi', 'Today'), tabBarIcon: icon('today') }} />
       <Tabs.Screen name="plants" options={{ title: tr('Piante', 'Plants'), tabBarIcon: icon('plants') }} />
+      <Tabs.Screen name="map" options={{ title: tr('Mappa', 'Map'), tabBarIcon: icon('map') }} />
       <Tabs.Screen name="settings" options={{ title: tr('Impostazioni', 'Settings'), tabBarIcon: icon('settings') }} />
     </Tabs>
   );
