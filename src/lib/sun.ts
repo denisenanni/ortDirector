@@ -128,8 +128,8 @@ export function shaded(p: Point, obstacles: Obstacle[], sun: SunPosition, north:
 /** The sun is checked every 15 minutes. */
 export const SAMPLE_MINUTES = 15;
 
-/** The typical day of the month (1-12): the 15th, at the place's solar midnight. */
-function dayStart(year: number, month: number, place: Place): number {
+/** The typical day of the month (1-12): the 15th, at the place's solar midnight (ms). */
+export function dayStart(year: number, month: number, place: Place): number {
   return Date.UTC(year, month - 1, 15, 0) - (place.lon / 15) * 3600000;
 }
 

@@ -24,6 +24,9 @@ const KINDS: { name: () => string; kind: ZoneShape['kind']; width: number; lengt
   { name: () => tr('Albero', 'Tree'), kind: 'circle', width: 4, length: 4, height: 6, deciduous: true },
 ];
 
+/** Back where the form was opened from; to the map when it was opened by a link. */
+const done = () => (router.canGoBack() ? router.back() : router.replace('/map'));
+
 /** A house, wall, hedge or tree on the map: its size, height, and whether it loses its leaves. */
 export default function EditObstacleScreen() {
   const db = useSQLiteContext();
@@ -63,14 +66,14 @@ export default function EditObstacleScreen() {
       height: height!,
       deciduous,
     });
-    router.back();
+    done();
   };
 
   const remove = async () => {
     if (editingId === null) return;
     if (!(await confirm(tr('Eliminare l’ostacolo?', 'Delete the obstacle?'), tr('Non farà più ombra.', 'It will cast no more shade.'), tr('Elimina', 'Delete'), true))) return;
     await deleteObstacle(db, editingId);
-    router.back();
+    done();
   };
 
   return (
