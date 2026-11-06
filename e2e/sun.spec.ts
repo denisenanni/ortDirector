@@ -43,7 +43,9 @@ test('a house south of a bed takes its sun, and the app offers to change the zon
   await page.getByRole('button', { name: /Casa$/ }).click();
   await page.getByLabel('Altezza', { exact: true }).fill('12');
   await page.getByRole('button', { name: 'Salva' }).click();
-
+  // Opened by a link, the form goes to the map once the house is saved: only then load the zone again.
+  await expect(page).toHaveURL(/\/map$/);
+  await expect(onMap(page, 'Casa')).toBeVisible();
   await page.goto(zone);
   await expect(page.getByText(/la stima dice (mezz’ombra|ombra)/)).toBeVisible();
   await page.getByRole('button', { name: /Segna (mezz’ombra|ombra)$/ }).click();
@@ -53,8 +55,16 @@ test('a house south of a bed takes its sun, and the app offers to change the zon
   await page.goto('/map');
   await page.getByRole('button', { name: 'Mostra il sole' }).click();
   await expect(onMap(page, /h di sole$/)).toBeVisible();
-  await expect(page.getByText('Ora 12:00')).toBeVisible();
+  // It starts at solar noon in Turin: 13:30 in Italian summer time.
+  const time = page.getByText(/^Ora \d\d:\d\d$/);
+  // Shown on the browser's clock, whatever its time zone.
+  const shown = (later: number) =>
+    page.evaluate((q) => {
+      const d = new Date((Math.round((Date.UTC(2026, 5, 15, 12) - (7.69 / 15) * 3600000) / 900000) + q) * 900000);
+      return `Ora ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    }, later);
+  await expect(time).toHaveText(await shown(0));
   await page.getByRole('button', { name: 'Dopo' }).click();
-  await expect(page.getByText('Ora 12:15')).toBeVisible();
+  await expect(time).toHaveText(await shown(1));
   await expect(page.locator('polygon').first()).toBeVisible();
 });

@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { GardenMap, parseKey, zoneKey, type MapMode, type MapZone, type SunView } from '@/components/GardenMap';
 import { SUN_SYMBOL } from '@/components/Icon';
@@ -22,7 +22,7 @@ import { confirm } from '@/lib/dialogs';
 import { locale, tr } from '@/lib/i18n';
 import * as m from '@/lib/map';
 import { today } from '@/lib/schedule';
-import { daylight, shadow, sunHours, sunPosition, type Place } from '@/lib/sun';
+import { dayStart, daylight, shadow, sunHours, sunPosition, type Place } from '@/lib/sun';
 import type { Obstacle, Plant, TaskWithPlant, Zone, ZoneShape } from '@/lib/types';
 
 interface Data {
@@ -35,10 +35,11 @@ interface Data {
 }
 
 const monthName = (month: number) => new Date(2026, month - 1, 1).toLocaleDateString(locale(), { month: 'short' });
-const clock = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
-const minutesOf = (ms: number) => {
-  const d = new Date(ms);
-  return d.getHours() * 60 + d.getMinutes();
+const QUARTER = 15 * 60000;
+/** A moment as the phone's clock shows it. */
+const clock = (quarter: number) => {
+  const d = new Date(quarter * QUARTER);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
 export default function MapScreen() {
@@ -48,7 +49,10 @@ export default function MapScreen() {
   const [mode, setMode] = useState<MapMode>('view');
   const [selected, setSelected] = useState<string | null>(null);
   const shown = useRef<{ view: m.View; width: number; height: number } | null>(null);
-  // Sun mode: the month and the time of day (minutes, phone clock) the shadows are drawn for.
+  // Sun mode: the month, and the time of day the shadows are drawn for, as
+  // minutes after the garden's solar midnight. Not the phone's clock: the
+  // garden's day can run across the phone's midnight when the phone is in
+  // another time zone. Starts at solar noon.
   const [month, setMonth] = useState(() => new Date().getMonth() + 1);
   const [minutes, setMinutes] = useState(12 * 60);
 
@@ -77,22 +81,21 @@ export default function MapScreen() {
 
   const year = new Date().getFullYear();
   const day = useMemo(() => (data?.place ? daylight(data.place, year, month) : null), [data?.place, year, month]);
-  const range = day ? { from: Math.ceil(minutesOf(day.rise) / 15) * 15, to: Math.floor(minutesOf(day.set) / 15) * 15 } : null;
+  // The slider moves in quarter hours of the clock (counted from 1970), from sunrise to sunset.
+  const start = data?.place ? dayStart(year, month, data.place) : 0;
+  const range = day ? { from: Math.ceil(day.rise / QUARTER), to: Math.floor(day.set / QUARTER) } : null;
   // A new month can move sunrise past the chosen time: keep it inside the day.
-  useEffect(() => {
-    if (range && range.from <= range.to) setMinutes((v) => Math.min(range.to, Math.max(range.from, v)));
-  }, [range?.from, range?.to]);
+  const quarter = range ? Math.min(range.to, Math.max(range.from, Math.round((start + minutes * 60000) / QUARTER))) : 0;
 
   const sun = useMemo<SunView | null>(() => {
     if (mode !== 'sun' || !data?.place) return null;
     const place = data.place;
     const hours = new Map<number, number>();
     for (const z of data.zones) if (z.shape) hours.set(z.id, sunHours(z.shape, data.obstacles, place, data.north, year, month));
-    const at = new Date(year, month - 1, 15, Math.floor(minutes / 60), minutes % 60);
-    const pos = sunPosition(at, place);
+    const pos = sunPosition(quarter * QUARTER, place);
     const shadows = data.obstacles.map((o) => shadow(o, pos, data.north, month)).filter((p): p is m.Point[] => p !== null);
     return { hours, shadows, azimuth: pos.altitude > 0 ? pos.azimuth : null };
-  }, [mode, data, year, month, minutes]);
+  }, [mode, data, year, month, quarter]);
 
   if (!data) return <Screen>{null}</Screen>;
   const onMap = data.zones.filter((z): z is MapZone => z.shape !== null);
@@ -214,13 +217,13 @@ export default function MapScreen() {
               </ScrollView>
               {range && range.from <= range.to ? (
                 <TimeSlider
-                  value={minutes}
+                  value={quarter}
                   min={range.from}
                   max={range.to}
-                  step={15}
+                  step={1}
                   format={clock}
                   label={tr('Ora', 'Time')}
-                  onChange={setMinutes}
+                  onChange={(q) => setMinutes((q * QUARTER - start) / 60000)}
                 />
               ) : (
                 <Body muted>{tr('In questo mese il sole non sorge.', 'The sun doesn’t rise this month.')}</Body>
