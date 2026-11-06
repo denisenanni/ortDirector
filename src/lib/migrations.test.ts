@@ -54,6 +54,13 @@ const SCHEMA: Record<number, string> = {
     ALTER TABLE tasks ADD COLUMN moves TEXT;
     ALTER TABLE task_log ADD COLUMN prev_zone_id INTEGER REFERENCES zones(id) ON DELETE SET NULL;
     ALTER TABLE task_log ADD COLUMN prev_covered INTEGER;`,
+  9: `
+    ALTER TABLE zones ADD COLUMN shape TEXT;
+    ALTER TABLE zones ADD COLUMN x REAL;
+    ALTER TABLE zones ADD COLUMN y REAL;
+    ALTER TABLE zones ADD COLUMN width REAL;
+    ALTER TABLE zones ADD COLUMN length REAL;
+    ALTER TABLE zones ADD COLUMN rotation REAL NOT NULL DEFAULT 0;`,
 };
 
 // A garden as the app of that version would have saved it: a rose and basil

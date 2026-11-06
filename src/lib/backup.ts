@@ -4,7 +4,7 @@
 import { tr } from './i18n.ts';
 
 /** Tables in insert order: each one only references tables before it. */
-export const BACKUP_TABLES = ['catalog', 'zones', 'plants', 'tasks', 'task_log', 'settings'] as const;
+export const BACKUP_TABLES = ['catalog', 'zones', 'obstacles', 'plants', 'tasks', 'task_log', 'settings'] as const;
 export type BackupTable = (typeof BACKUP_TABLES)[number];
 
 export type Row = Record<string, string | number | null>;
@@ -62,7 +62,8 @@ export function parseBackup(text: string, currentVersion: number): Backup {
   }
   for (const t of BACKUP_TABLES) {
     const rows = b.tables[t];
-    if (rows === undefined && (t === 'zones' || t === 'catalog')) continue; // zones came with v4, catalog with v6
+    // zones came with v4, catalog with v6, obstacles with v10
+    if (rows === undefined && (t === 'zones' || t === 'catalog' || t === 'obstacles')) continue;
     if (!Array.isArray(rows) || rows.some((r) => !r || typeof r !== 'object' || Array.isArray(r))) {
       throw new Error(tr(`Il backup è danneggiato (tabella ${t}).`, `The backup is damaged (table ${t}).`));
     }
@@ -77,7 +78,7 @@ export function parseBackup(text: string, currentVersion: number): Backup {
   }
   return {
     ...(b as Backup),
-    tables: { ...b.tables, zones: b.tables.zones ?? [], catalog: b.tables.catalog ?? [] } as Backup['tables'],
+    tables: { ...b.tables, zones: b.tables.zones ?? [], catalog: b.tables.catalog ?? [], obstacles: b.tables.obstacles ?? [] } as Backup['tables'],
     photos,
   };
 }

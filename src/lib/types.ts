@@ -53,6 +53,21 @@ export interface ZoneShape {
   rotation: number;
 }
 
+/**
+ * A house, wall, hedge or tree drawn on the map: it has no plants, only a
+ * height, and shades the zones around it. A tree is a circle as wide as its
+ * crown.
+ */
+export interface Obstacle {
+  id: number;
+  name: string;
+  shape: ZoneShape;
+  /** Metres above the ground. */
+  height: number;
+  /** Loses its leaves: no shade from November to March. */
+  deciduous: boolean;
+}
+
 export interface Plant {
   id: number;
   name: string;

@@ -14,6 +14,7 @@ import {
   addToCatalog,
   exportBackup,
   getLastBackup,
+  getPlace,
   getReminderHour,
   importBackup,
   removeFromCatalog,
@@ -25,6 +26,7 @@ import { ensurePermission, syncReminders } from '@/lib/notifications';
 import { readPhotos, restorePhotos } from '@/lib/photos';
 import { cat, locale, tr } from '@/lib/i18n';
 import { chooseLanguage, languageChoice, type LanguageChoice } from '@/lib/locale';
+import type { Place } from '@/lib/sun';
 
 export default function SettingsScreen() {
   const db = useSQLiteContext();
@@ -36,6 +38,7 @@ export default function SettingsScreen() {
   const [catalogNote, setCatalogNote] = useState<{ text: string; error?: boolean } | null>(null);
   const t = useTheme();
   const [choice, setChoice] = useState(languageChoice);
+  const [place, setPlaceState] = useState<Place | null>(null);
 
   const changeLanguage = (c: LanguageChoice) => {
     if (c === choice) return;
@@ -50,6 +53,7 @@ export default function SettingsScreen() {
     useCallback(() => {
       getReminderHour(db).then(setHour);
       getLastBackup(db).then(setLast);
+      getPlace(db).then(setPlaceState);
       Notifications.getPermissionsAsync().then((p) => setGranted(p.granted));
     }, [db]),
   );
@@ -108,6 +112,7 @@ export default function SettingsScreen() {
       setBackupNote({ text: tr(`Backup importato: ${summary}.`, `Backup imported: ${summary}.`) });
       getReminderHour(db).then(setHour);
       getLastBackup(db).then(setLast);
+      getPlace(db).then(setPlaceState);
       setAdded(customEntries());
       syncReminders(db);
     };
@@ -205,6 +210,21 @@ export default function SettingsScreen() {
             </>
           )}
         </Card>
+        <SectionHeader>{tr('Giardino', 'Garden')}</SectionHeader>
+        <Card>
+          <Body muted>
+            {place
+              ? tr(
+                  `Posizione: ${fmtDeg(place.lat)}, ${fmtDeg(place.lon)}. Serve per le ore di sole delle zone sulla mappa.`,
+                  `Location: ${fmtDeg(place.lat)}, ${fmtDeg(place.lon)}. It gives the hours of sun of the zones on the map.`,
+                )
+              : tr(
+                  'Con la posizione del giardino l’app stima le ore di sole delle zone sulla mappa.',
+                  'With the garden’s location the app estimates the hours of sun of the zones on the map.',
+                )}
+          </Body>
+          <Button kind="secondary" icon="place" label={place ? tr('Cambia posizione', 'Change location') : tr('Imposta la posizione', 'Set the location')} onPress={() => router.push('/location')} />
+        </Card>
         <SectionHeader>{tr('Catalogo', 'Catalog')}</SectionHeader>
         <Card>
           <Body muted>
@@ -247,3 +267,5 @@ export default function SettingsScreen() {
     </Screen>
   );
 }
+
+const fmtDeg = (v: number) => v.toLocaleString(undefined, { maximumFractionDigits: 4 });

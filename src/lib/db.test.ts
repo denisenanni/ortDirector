@@ -281,6 +281,8 @@ test('a backup restores the same garden on another phone', async () => {
   const zone = await db.saveZone(d, { name: 'Serra', sun: 'partial', covered: true });
   await db.setZoneShape(d, zone, { kind: 'rect', x: 3.5, y: -2, width: 4, length: 2.5, rotation: 30 });
   await db.setNorth(d, 40);
+  await db.setPlace(d, { lat: 45.07, lon: 7.69 });
+  await db.saveObstacle(d, { name: 'Fico', shape: { kind: 'circle', x: 0, y: 4, width: 5, length: 5, rotation: 0 }, height: 6, deciduous: true });
   await db.addToCatalog(d, parseCatalogFile(mimosa));
   const id = await db.createPlant(d, plant({ name: 'Rosa', preset: 'Rosa', zoneId: zone }));
   await db.setPlantPhoto(d, id, 'plant-1-1700000000000.jpg');
@@ -298,6 +300,9 @@ test('a backup restores the same garden on another phone', async () => {
   assert.equal(await db.getReminderHour(other), 7);
   assert.equal((await db.getZone(other, zone))!.shape!.rotation, 30);
   assert.equal(await db.getNorth(other), 40);
+  assert.deepEqual(await db.getPlace(other), { lat: 45.07, lon: 7.69 });
+  assert.deepEqual(await db.listObstacles(other), await db.listObstacles(d));
+  assert.equal((await db.listObstacles(other)).length, 1);
   assert.ok(customFor('Mimosa tardiva'));
   assert.deepEqual(photoNames((await db.exportBackup(other)).tables), ['plant-1-1700000000000.jpg']);
 });
@@ -461,4 +466,27 @@ test('a plain tick leaves the plant where it is, and its undo too', async () => 
   await db.undoDone(d, (await db.listDoneOn(d, T))[0]);
   const p = (await db.getPlant(d, id))!;
   assert.deepEqual([p.zoneId, p.covered], [zone, true]);
+});
+
+test('obstacles are added, reshaped and deleted; a circle has no turn', async () => {
+  const d = await fresh();
+  const id = await db.saveObstacle(d, { name: 'Casa', shape: { kind: 'rect', x: 0, y: -6, width: 10, length: 8, rotation: 10 }, height: 7, deciduous: false });
+  await db.setObstacleShape(d, id, { kind: 'circle', x: 1, y: 1, width: 3, length: 9, rotation: 10 });
+  assert.deepEqual(await db.getObstacle(d, id), {
+    id, name: 'Casa', shape: { kind: 'circle', x: 1, y: 1, width: 3, length: 3, rotation: 0 }, height: 7, deciduous: false,
+  });
+  await db.saveObstacle(d, { id, name: 'Noce', shape: { kind: 'circle', x: 1, y: 1, width: 3, length: 3, rotation: 0 }, height: 9, deciduous: true });
+  assert.deepEqual((await db.listObstacles(d)).map((o) => [o.name, o.height, o.deciduous]), [['Noce', 9, true]]);
+  await db.deleteObstacle(d, id);
+  assert.deepEqual(await db.listObstacles(d), []);
+});
+
+test('the garden’s position is kept only when it is a real place', async () => {
+  const d = await fresh();
+  assert.equal(await db.getPlace(d), null);
+  await db.setPlace(d, { lat: -33.9, lon: 151.2 });
+  assert.deepEqual(await db.getPlace(d), { lat: -33.9, lon: 151.2 });
+  await assert.rejects(db.setPlace(d, { lat: 95, lon: 0 }));
+  await db.setPlace(d, null);
+  assert.equal(await db.getPlace(d), null);
 });
