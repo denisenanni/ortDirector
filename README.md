@@ -127,7 +127,7 @@ Se invece si ferma con un errore di firma, apri `ios/ortDirector.xcworkspace` in
 
 Alla prima apertura iOS dice "Sviluppatore non attendibile": Impostazioni → Generali → VPN e gestione dispositivi → il tuo Apple ID → **Autorizza**.
 
-La cartella `ios/` viene generata e non va committata (è in `.gitignore`). Dopo aver cambiato `app.json` o aggiunto un pacchetto nativo: `yarn expo prebuild -p ios --clean` e poi `yarn iphone`.
+La cartella `ios/` viene generata e non va committata (è in `.gitignore`). `yarn iphone` e `yarn simulator` la riallineano ogni volta ad `app.json` (permessi, plugin) prima di compilare: `expo run:ios` da solo la genera solo se manca, e una cartella vecchia resta senza i permessi nuovi (così "Usa la mia posizione" chiudeva l'app: iOS la ferma se manca il testo del permesso). Se la build si rompe in modo strano: `yarn expo prebuild -p ios --clean` e poi `yarn iphone` (con `--clean` va rimesso il Team in Xcode).
 
 L'app installata e Expo Go hanno dati separati: per portare le piante esporta il backup da Expo Go (Impostazioni → Esporta backup) e importalo nell'app installata.
 
