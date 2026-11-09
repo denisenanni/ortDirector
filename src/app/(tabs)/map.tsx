@@ -206,7 +206,8 @@ export default function MapScreen() {
           onView={onView}
         />
       </View>
-      <View style={{ padding: 16, paddingBottom: 20, gap: 8 }}>
+      {/* Every chip shows, wrapped onto new lines; past a third of the screen the panel scrolls down. */}
+      <ScrollView style={{ flexGrow: 0, maxHeight: '35%' }} contentContainerStyle={{ padding: 16, paddingBottom: 20, gap: 8 }}>
         {mode === 'sun' ? (
           data.place ? (
             <>
@@ -267,19 +268,25 @@ export default function MapScreen() {
           </>
         ) : mode === 'edit' ? (
           <>
-            <Body muted>{offMap.length > 0 ? tr('Metti sulla mappa:', 'Put on the map:') : tr('Tutte le zone sono sulla mappa.', 'Every zone is on the map.')}</Body>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-              {offMap.map((z) => (
-                <Chip key={z.id} icon="add" label={z.name} onPress={() => place(z)} />
-              ))}
+            <ChipRow>
               <Chip icon="add" label={tr('Nuova zona', 'New zone')} onPress={() => router.push({ pathname: '/zone/edit', params: { map: '1' } })} />
               <Chip icon="obstacle" label={tr('Nuovo ostacolo', 'New obstacle')} onPress={newObstacle} />
-            </ScrollView>
+            </ChipRow>
+            {offMap.length > 0 ? (
+              <>
+                <Body muted>{tr('Metti sulla mappa:', 'Put on the map:')}</Body>
+                <ChipRow>
+                  {offMap.map((z) => (
+                    <Chip key={z.id} icon="add" label={z.name} onPress={() => place(z)} />
+                  ))}
+                </ChipRow>
+              </>
+            ) : null}
           </>
         ) : offMap.length > 0 ? (
           <>
             <Body muted>{tr('Fuori mappa:', 'Off the map:')}</Body>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+            <ChipRow>
               {offMap.map((z) => (
                 <Chip
                   key={z.id}
@@ -288,10 +295,10 @@ export default function MapScreen() {
                   onPress={() => router.push({ pathname: '/zone/[id]', params: { id: String(z.id) } })}
                 />
               ))}
-            </ScrollView>
+            </ChipRow>
           </>
         ) : null}
-      </View>
+      </ScrollView>
     </Screen>
   );
 }
