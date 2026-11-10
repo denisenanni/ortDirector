@@ -42,11 +42,18 @@ Installing it on an iPhone without Expo Go (free Apple ID, Xcode): see the Itali
 
 ### Roadmap
 
-The v2 requirements are agreed and written down in [docs/requirements-v2.md](docs/requirements-v2.md):
+v2 is done: the garden map and estimated sun hours per zone ([docs/requirements-v2.md](docs/requirements-v2.md)). Android is postponed.
 
-1. **Garden map**: a new Map tab with a metric grid and a north arrow, where existing zones become rectangles and circles you can move, resize and rotate, showing plant counts, overdue tasks and sun warnings. New database version, included in backups.
-2. **Estimated sun hours** per zone: from GPS position, the sun's path computed on the device and obstacles drawn on the map (house, walls, hedges, trees with their height), giving direct-sun hours for a typical day of each month and turning them into the exposure the app already uses.
-3. **Android** support, and an EAS / TestFlight build.
+v3 candidates, in proposed order. None is agreed yet: each one gets its own requirements before it is built.
+
+1. **"Frost tonight" button**, the cold twin of "it rained": one tap lists frost-sensitive plants that are not sheltered and creates the shelter tasks, reusing the zone moves.
+2. **Sowing calendar** with a "sow this month" view, and a seed stash (which seeds you have, when they expire).
+3. **Crop rotation by zone**: the app remembers which plant families each zone held and warns when the same family goes back in too soon.
+4. **Harvest log**: a quick harvest entry on a plant (weight or count), with season totals.
+5. **Holiday mode**: pick the dates, get a plain watering list for whoever covers, and pause or shift your own reminders.
+6. **Companion and bad-neighbour warnings by zone** (fennel next to tomatoes), built on the families from point 3.
+
+Later, unchanged: Android, a real iPhone build (EAS, paid Apple Developer account) and the stores.
 
 --- ITALIANO ---
 
@@ -164,5 +171,15 @@ Struttura:
 
 ## Prossimi passi possibili
 
-- Mappa schematica del giardino (aiuole, posizione delle piante).
-- Build EAS e TestFlight (serve l'account Apple Developer a pagamento), e Android.
+La v2 è fatta: mappa del giardino e ore di sole per zona. Android è rimandato.
+
+Proposte per la v3, nell'ordine suggerito. Nessuna è ancora concordata: ognuna avrà i suoi requisiti prima di essere fatta.
+
+1. **Pulsante "Stanotte gela"**, il gemello freddo di "Ha piovuto": un tocco elenca le piante che temono il gelo e non sono al riparo, e crea le attività per ripararle, usando gli spostamenti di zona che ci sono già.
+2. **Calendario di semina** con la vista "Da seminare questo mese", e la scorta di semi (quali hai, quando scadono).
+3. **Rotazione delle colture per zona**: l'app ricorda quali famiglie di piante ha avuto ogni zona e avvisa se la stessa famiglia ci torna troppo presto.
+4. **Registro dei raccolti**: un raccolto segnato su una pianta (peso o numero), con i totali della stagione.
+5. **Modalità vacanza**: scegli le date, ottieni una lista semplice delle annaffiature per chi ti sostituisce, e i tuoi promemoria si fermano o si spostano.
+6. **Consociazioni e vicini sgraditi per zona** (finocchio accanto al pomodoro), sulle famiglie del punto 3.
+
+Dopo, come prima: Android, build vera per iPhone (EAS, account Apple Developer a pagamento) e gli store.
