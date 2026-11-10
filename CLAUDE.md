@@ -15,4 +15,4 @@
   for web e2e flows.
 - Commits: one logical change each, descriptive message, keep `Co-Authored-By`.
   Never rewrite history, squash or force-push.
-- Keep README.md and ROADMAP.md up to date when features land.
+- Keep README.md, including its Roadmap section, up to date when features land.
